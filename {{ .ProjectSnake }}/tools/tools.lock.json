@@ -4,17 +4,31 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2024.01/aspect-cli_x86_64_unknown_linux_musl",
-        "os": "linux",
-        "cpu": "x86_64",
-        "sha256": "4179bd062c9a83a884825b66ce65ddfdd4977deefec718fa1686eb06b3551f39"
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2025.11.0/aspect-darwin_arm64",
+        "sha256": "faf3f6717858eee742c296980c78291c8cf4d1a77ff53463015260d2294e6feb",
+        "os": "macos",
+        "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2024.01/aspect-cli_aarch64_apple_darwin",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2025.11.0/aspect-darwin_amd64",
+        "sha256": "826df1fca45887185f48b8e5b1d1084cdcad3ce5a5bd889289fcde8779029e4c",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2025.11.0/aspect-linux_arm64",
+        "sha256": "100b64f7282b3c2a6174fc0774fc954cfe3882035347ab0b9e698d63935bf0db",
         "os": "linux",
-        "cpu": "arm64",
-        "sha256": "797a51f273d789f111c653391c0f8955ea873e8ca0bbab09ed87fc6317e8e89f"
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/2025.11.0/aspect-linux_amd64",
+        "sha256": "fc815a34cb05ff02f9e745abce61706dcd08399b0aaac9c054f5037e52546846",
+        "os": "linux",
+        "cpu": "x86_64"
       }
     ]
   },
@@ -123,6 +137,178 @@
         "url": "https://github.com/withered-magic/starpls/releases/download/v0.1.21/starpls-darwin-arm64.tar.gz",
         "file": "starpls",
         "sha256": "1542edc2ed597feca65455fe87a81436e091ae06a6c4e455dc9625f5a92905fb",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "kubectl": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://dl.k8s.io/release/v1.34.1/bin/linux/amd64/kubectl",
+        "sha256": "7721f265e18709862655affba5343e85e1980639395d5754473dafaadcaa69e3",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://dl.k8s.io/release/v1.34.1/bin/linux/arm64/kubectl",
+        "sha256": "420e6110e3ba7ee5a3927b5af868d18df17aae36b720529ffa4e9e945aa95450",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://dl.k8s.io/release/v1.34.1/bin/darwin/amd64/kubectl",
+        "sha256": "bb211f2b31f2b3bc60562b44cc1e3b712a16a98e9072968ba255beb04cefcfdf",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://dl.k8s.io/release/v1.34.1/bin/darwin/arm64/kubectl",
+        "sha256": "d80e5fa36f2b14005e5bb35d3a72818acb1aea9a081af05340a000e5fbdb2f76",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "skaffold": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/GoogleContainerTools/skaffold/releases/download/v2.16.1/skaffold-linux-amd64",
+        "sha256": "1cbeea85aa14ba603dbc2bbdfa7bfde5644d7988beed0fdc0fd1c67298d4cf67",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/GoogleContainerTools/skaffold/releases/download/v2.16.1/skaffold-linux-arm64",
+        "sha256": "b68fa949b7a918935641061b5bf3917e0be3a5ecaa591169f7cc0f8362c3fb82",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/GoogleContainerTools/skaffold/releases/download/v2.16.1/skaffold-darwin-amd64",
+        "sha256": "ed4c6cd0c82f48908db6bc1210b2f609bb5672b340ad1fbaa092ed2c6acedeb5",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/GoogleContainerTools/skaffold/releases/download/v2.16.1/skaffold-darwin-arm64",
+        "sha256": "135916bc0d3250857c2dbe8b12da4dd21a38a7d5ef96926cf14ed94226343694",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "gcloud": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz",
+        "file": "google-cloud-sdk/bin/gcloud",
+        "sha256": "1bd66d2f4bf45ebfcfdc98b109c262ad022af9d8ce9ebad8afa06faa48620e0e",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-arm.tar.gz",
+        "file": "google-cloud-sdk/bin/gcloud",
+        "sha256": "6882d3255f5cd78b2016665a9f251b94e75106432ff677d288e99e78470a1950",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-x86_64.tar.gz",
+        "file": "google-cloud-sdk/bin/gcloud",
+        "sha256": "e41964cb245ce447fce64ddc786cc40fbde29cfab5099a219f496398331b2e5d",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz",
+        "file": "google-cloud-sdk/bin/gcloud",
+        "sha256": "9dcdd86a06c84c83043418224bf73ac2e63f2a89386ec32b9192707fd518a3c0",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "pulumi": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/pulumi/pulumi/releases/download/v3.200.0/pulumi-v3.200.0-linux-x64.tar.gz",
+        "file": "pulumi/pulumi",
+        "sha256": "b48a7f6034c6ef554c25e1762b9e89d451d2ebd4f3671850a56fe395956fecbe",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/pulumi/pulumi/releases/download/v3.200.0/pulumi-v3.200.0-linux-arm64.tar.gz",
+        "file": "pulumi/pulumi",
+        "sha256": "127e30ee5b34b32d616db1a3254ff2520e639cfb3b0f19dfc62b52f743465c2c",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/pulumi/pulumi/releases/download/v3.200.0/pulumi-v3.200.0-darwin-x64.tar.gz",
+        "file": "pulumi/pulumi",
+        "sha256": "37637baca916c2a76ae5fef80bad868c140d781c0257d615efb4b22c3329821b",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/pulumi/pulumi/releases/download/v3.200.0/pulumi-v3.200.0-darwin-arm64.tar.gz",
+        "file": "pulumi/pulumi",
+        "sha256": "07d3e22b6a75b38be80acc39df5e2710899da437803e4290dd7c00d2bd9256ec",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "terraform": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.13.3/terraform_1.13.3_linux_amd64.zip",
+        "file": "terraform",
+        "sha256": "71fc43d92ea09907be5d416d2405a6a9c2d1ceaed633f5e175c0af26e8c4b365",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.13.3/terraform_1.13.3_linux_arm64.zip",
+        "file": "terraform",
+        "sha256": "fa82fb1b08354573467557f33e6a15e7f9e1bba74eb15492f151ca27525d2acc",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.13.3/terraform_1.13.3_darwin_amd64.zip",
+        "file": "terraform",
+        "sha256": "5ef8e19091106b1921af26db5bcee3cd84a475eae2fd190fc02b1049b320d042",
+        "os": "macos",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://releases.hashicorp.com/terraform/1.13.3/terraform_1.13.3_darwin_arm64.zip",
+        "file": "terraform",
+        "sha256": "8362e7284b38a1194884963deed83481696d468b42dab88052775f4280383584",
         "os": "macos",
         "cpu": "arm64"
       }
