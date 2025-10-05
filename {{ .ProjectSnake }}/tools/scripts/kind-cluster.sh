@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-CLUSTER_NAME="blueprint-dev"
+CLUSTER_NAME="local-dev-cluster"
 CONFIG_FILE=".devcontainer/kind-config.yaml"
 
 function print_success() {
