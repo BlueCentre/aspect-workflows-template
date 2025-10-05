@@ -1,0 +1,39 @@
+{
+  // https://containers.dev/implementors/json_reference/
+  // "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	// "image": "mcr.microsoft.com/vscode/devcontainers/base:dev-hirsute",
+  // "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "build": {
+    "dockerfile": "Dockerfile" // Swap with Dockerfile for minimum Codespace
+  },
+  "containerEnv": {
+    // "PATH": "${localEnv:PATH}",
+    "PATH": "${localEnv:PATH}:~/go/bin"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "github.vscode-github-actions",
+        "google.gemini-cli-vscode-ide-companion",
+        "googlecloudtools.cloudcode",
+        "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-vscode-remote.remote-containers"
+      ]
+    }
+  },
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2.12.4": {},
+		"ghcr.io/devcontainers-community/features/bazel:1": {},
+    // "ghcr.io/devcontainers-extra/features/direnv:1": {}, // only required post-scaffolding
+    "ghcr.io/devcontainers-extra/features/devcontainers-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/gh-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/kind:1": {},
+		// "ghcr.io/devcontainers-extra/features/pre-commit:2": {}, // uncomment when/if we have precommit for this codespace
+    "ghcr.io/devcontainers-extra/features/tailscale:1": {}
+	},
+	"postCreateCommand": "/bin/bash -ex ./.devcontainer/postCreateCommand.sh > postCreateCommand.log"
+}
