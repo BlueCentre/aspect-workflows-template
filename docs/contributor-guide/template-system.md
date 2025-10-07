@@ -512,6 +512,73 @@ features:
 
 - `has`, `and`, `or`, `not`, `default`
 
+### Template Delimiters Conflict
+
+**Error**: `template: scaffold:XXXX: function "include" not defined`
+
+**Problem**: Template files contain syntax that conflicts with Scaffold's Go template processing. This commonly occurs with:
+
+- Helm chart values files using `{{ include ... }}`
+- Files that are themselves Go templates (e.g., `.gotmpl` files)
+- Configuration files for other templating systems
+
+**Example Error**:
+```
+fatal: template: scaffold:2215: function "include" not defined
+```
+
+**Solution**: Add the conflicting files to the `skip` list in `scaffold.yaml`:
+
+```yaml
+skip:
+  # Skip Helm values files that contain Helm template syntax
+  - "**/infrastructure/**/helm_values/**/*.yaml"
+  - "**/infrastructure/**/helm_values/**/*.yml"
+  # Skip Go template files
+  - "**/*.gotmpl"
+  # Skip specific files with conflicting syntax
+  - "*/.goreleaser.yaml"
+```
+
+**How `skip` works**:
+- Files matching these glob patterns are copied as-is without template processing
+- The original content is preserved exactly
+- Useful for files that contain `{{` and `}}` that aren't meant for Scaffold
+
+**Alternative Solution - Custom Delimiters**:
+
+If you need to template _some_ content in the file but preserve other template syntax, use custom delimiters:
+
+```yaml
+delimiters:
+  - glob: "**.goreleaser.yaml"
+    left: "[["
+    right: "]]"
+```
+
+Then in your file, use `[[` and `]]` for Scaffold templates:
+
+```yaml
+# .goreleaser.yaml
+project_name: [[ .ProjectSnake ]]
+
+# Preserve original Go template syntax
+builds:
+  - binary: myapp
+    ldflags:
+      - -X main.version={{ .Version }}  # This won't be processed
+```
+
+**Testing the Fix**:
+
+```bash
+# Test specific preset
+./test.sh kitchen-sink
+
+# Or manual test
+scaffold new --output-dir=/tmp/test --preset=kitchen-sink --no-prompt .
+```
+
 ### Variable Not Found
 
 **Error**: `can't evaluate field X in type`

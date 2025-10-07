@@ -18,14 +18,28 @@ jobs:
                     - shell
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v5
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Get branch name
+              id: get-branch-name
+              run: |
+                if [ "${{ github.event_name }}" == "pull_request" ]; then
+                  echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+                else
+                  echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+                fi
+              shell: bash
+
             - uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2 # v2.1.0
               with:
                 repo: hay-kot/scaffold
                 tag: v0.10.3
-            - name: setting to always run hooks
+
+            - name: Setting to always run hooks
               if: "${{ matrix.preset != 'minimal' }}"
               run: echo "SCAFFOLD_SETTINGS_RUN_HOOKS=always" >> "$GITHUB_ENV"
+
             - name: Scaffold new app
               id: scaffold
               run: |
@@ -36,17 +50,19 @@ jobs:
                 git add .
                 git config user.email "git@nocentre.net"
                 git config user.name "Git, the Delivery bot"
-                git commit -a -m "template"
+                git commit -a -m "chore: scaffold generated template"
                 echo "dir=$PWD" >> $GITHUB_OUTPUT
+
             - name: Convert preset name to deploy secret name
               id: which-secret
               run: |
                 CLEAN="${{ matrix.preset }}"
                 CLEAN="${CLEAN//-/_}"       
                 echo "secret-name=STARTER_DEPLOY_${CLEAN^^}" >> "$GITHUB_OUTPUT"
+
             - name: Force-Push to Starter repo
               working-directory: ${{ steps.scaffold.outputs.dir }}
               run: |
                 eval $(ssh-agent -s)
                 ssh-add - <<< '${{ secrets[steps.which-secret.outputs.secret-name] }}'
-                git push  --force git@github.com:BlueCentre/${{ matrix.preset }}.git HEAD:main
+                git push --force git@github.com:BlueCentre/${{ matrix.preset }}.git HEAD:${{ steps.get-branch-name.outputs.BRANCH_NAME }}

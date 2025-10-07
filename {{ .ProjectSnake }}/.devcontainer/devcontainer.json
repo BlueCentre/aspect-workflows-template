@@ -26,6 +26,7 @@
         "google.gemini-cli-vscode-ide-companion",
         "googlecloudtools.cloudcode",
         "ms-azuretools.vscode-containers",
+        "ms-kubernetes-tools.kind-vscode",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
         "ms-python.python",
         "ms-python.vscode-pylance",
@@ -38,11 +39,14 @@
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "enableNonRootDocker": "true"
     },
-		// "ghcr.io/devcontainers-community/features/bazel:1": {}, // Already installed in Dockerfile
+		"ghcr.io/devcontainers-community/features/bazel:1": {},
     // "ghcr.io/devcontainers-extra/features/direnv:1": {}, // Already installed in Dockerfile
     "ghcr.io/devcontainers-extra/features/devcontainers-cli:1": {},
     "ghcr.io/devcontainers-extra/features/gh-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/git-lfs:1": {},
 		"ghcr.io/devcontainers-extra/features/kind:1": {},
+    "ghcr.io/devcontainers-extra/features/istioctl:1": {},
+    "ghcr.io/devcontainers-extra/features/mise:1": {},
 		"ghcr.io/devcontainers-extra/features/pre-commit:2": {},
     "ghcr.io/devcontainers-extra/features/tailscale:1": {}
   },

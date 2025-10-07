@@ -1,0 +1,57 @@
+environment:
+  - monorepo/local
+encryptionsalt: v1:2q/j9oCTjH0=:v1:1kTegG+X9Ve/oI2C:/krGKWcHvieQjXhYbuEjybzZfh+sjQ==
+config:
+  monorepo:kubernetes_context: "kind-local-dev-cluster"
+  monorepo:region: "us-central1"
+  monorepo:cert_manager_enabled: "true"
+  monorepo:cert_manager_version: "v1.17.0"
+  monorepo:external_secrets_enabled: "true"
+  monorepo:external_secrets_version: "0.14.4"
+  monorepo:external_dns_enabled: "true"
+  monorepo:external_dns_version: "1.19.0"
+  monorepo:monitoring_enabled: "false"
+  monorepo:opentelemetry_enabled: "true"
+  monorepo:opentelemetry_version: "0.79.0"
+  monorepo:datadog_enabled: "false"
+  monorepo:datadog_version: "3.74.1"
+  monorepo:datadog_api_key: "REPLACE_WITH_DATADOG_API_KEY"
+  monorepo:datadog_app_key: "REPLACE_WITH_DATADOG_APP_KEY"
+  # MetalLB configuration for LoadBalancer support in kind/bare-metal clusters
+  # Enable this for local development (kind/minikube) or bare-metal clusters
+  # Not needed for cloud providers (GKE/EKS/AKS) which have native LoadBalancer support
+  monorepo:metallb_enabled: "true"
+  monorepo:metallb_version: "0.14.9"
+  # IP range must match your cluster network (docker network for kind)
+  # For kind: typically 172.18.x.x range - adjust based on `docker network inspect kind`
+  # For minikube: typically 192.168.x.x range
+  # For bare-metal: use available IPs in your network
+  monorepo:metallb_ip_range: "172.18.255.200-172.18.255.250"
+  monorepo:istio_enabled: "true"
+  monorepo:istio_version: "1.23.3"
+  monorepo:redis_enabled: "true"
+  monorepo:redis_version: "19.6.4"
+  monorepo:redis_password:
+    secure: REPLACE_WITH_YOUR_SECRET
+  monorepo:cnpg_enabled: "true"
+  monorepo:cnpg_version: "0.23.2"
+  monorepo:cnpg_operator_version: "0.23.2"
+  monorepo:cnpg_cluster_version: "0.2.1"
+  monorepo:cnpg_app_db_name: app
+  monorepo:cnpg_app_db_user: app_user
+  monorepo:cnpg_app_db_password:
+    secure: REPLACE_WITH_YOUR_SECRET
+  monorepo:mongodb_enabled: "true"
+  monorepo:mongodb_operator_version: "0.12.0"
+  monorepo:mongodb_replicaset_version: "4.4.19"
+  monorepo:mongodb_password:
+    secure: REPLACE_WITH_YOUR_SECRET
+  monorepo:argocd_enabled: "false"
+  monorepo:github_token:
+    secure: REPLACE_WITH_YOUR_SECRET
+  monorepo:telepresence_enabled: "false"
+  monorepo:cloudflare_api_token:
+    secure: REPLACE_WITH_YOUR_SECRET
+  monitoring:namespace: monitoring
+  database:namespace: database
+  ingress:namespace: ingress-nginx

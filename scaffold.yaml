@@ -29,6 +29,12 @@ messages:
     📢 Stay up to date: <https://www.linkedin.com/company/aspect-build/>
     💬 Discuss on Bazel Slack: <https://slack.bazel.build> in the #aspect-build channel
 
+skip:
+  # Skip Helm values files that contain Helm template syntax ({{ include ... }})
+  # which conflicts with Go template processing
+  - "**/infrastructure/**/helm_values/**/*.yaml"
+  - "**/infrastructure/**/helm_values/**/*.yml"
+
 questions:
   - name: langs
     validate:
@@ -145,7 +151,7 @@ computed:
   platforms: "{{ .Scaffold.oci }}"
 presets:
   kitchen-sink:
-    lint: true
+    lint: "true"
     langs:
       - 'C & C++'
       - 'JavaScript & TypeScript'
@@ -155,36 +161,36 @@ presets:
       - 'Java'
       - 'Rust'
       - 'Shell (Bash)'
-    codegen: true
-    stamp: true
-    oci: true
+    codegen: "true"
+    stamp: "true"
+    oci: "true"
   shell:
     langs: ['Shell (Bash)']
-    lint: true
+    lint: "true"
   go:
-    codegen: true
+    codegen: "true"
     langs: ['Go']
-    lint: true
-    oci: true
+    lint: "true"
+    oci: "true"
   js:
     langs: ['JavaScript & TypeScript']
-    codegen: true
-    lint: true
+    codegen: "true"
+    lint: "true"
   py:
     langs: ['Python']
-    codegen: true
-    lint: true
+    codegen: "true"
+    lint: "true"
   java:
     langs: ['Java']
-    lint: true
+    lint: "true"
   kotlin:
     langs: ['Kotlin']
-    lint: true
+    lint: "true"
   cpp:
     langs: ['C & C++']
-    lint: true
+    lint: "true"
   rust:
     langs: ['Rust']
-    lint: true
+    lint: "true"
   minimal:
     langs: []

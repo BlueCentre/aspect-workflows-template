@@ -315,6 +315,35 @@ bazel run //src:my_app_image.push --@rules_oci//oci:registry=gcr.io/myproject
 
 ## Troubleshooting
 
+### Template generation fails with "function not defined" error
+
+**Error**: `fatal: template: scaffold:XXXX: function "include" not defined`
+
+**Cause**: The template contains files with syntax that conflicts with Scaffold's Go template engine. This commonly happens with:
+- Helm chart values files (using `{{ include ... }}`)
+- Files that are themselves Go templates (`.gotmpl` files)
+- Configuration files for other template systems
+
+**Solution**: Add the conflicting files to the `skip` list in `scaffold.yaml`:
+
+```yaml
+skip:
+  # Skip Helm values files that contain Helm template syntax
+  - "**/infrastructure/**/helm_values/**/*.yaml"
+  - "**/infrastructure/**/helm_values/**/*.yml"
+  # Skip Go template files
+  - "**/*.gotmpl"
+```
+
+Files in the `skip` list are copied as-is without template processing.
+
+**Verify the fix**:
+```bash
+./test.sh kitchen-sink
+```
+
+See [Template System Documentation](./contributor-guide/template-system.md#template-delimiters-conflict) for more details.
+
 ### Bazel is using too much disk space
 
 Bazel's cache can grow large. Clean it with:

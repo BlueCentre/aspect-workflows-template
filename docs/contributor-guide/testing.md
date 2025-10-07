@@ -110,6 +110,59 @@ For each preset test:
 - [ ] `aspect lint //...` works (if lint enabled)
 - [ ] Language-specific tools are available
 
+### Common Test Failures
+
+#### Template Syntax Error: "function not defined"
+
+**Symptom**:
+```
+fatal: template: scaffold:2215: function "include" not defined
+```
+
+**Cause**: Template files contain syntax that conflicts with Scaffold's Go template processing (e.g., Helm templates, other Go templates).
+
+**Solution**: Add conflicting files to the `skip` list in `scaffold.yaml`:
+
+```yaml
+skip:
+  # Skip Helm values files that contain Helm template syntax
+  - "**/infrastructure/**/helm_values/**/*.yaml"
+  - "**/infrastructure/**/helm_values/**/*.yml"
+  # Skip Go template files
+  - "**/*.gotmpl"
+```
+
+**Verification**:
+```bash
+./test.sh kitchen-sink
+```
+
+See [Template System - Template Delimiters Conflict](./template-system.md#template-delimiters-conflict) for more details.
+
+#### Post-Scaffold Hook Failures
+
+**Symptom**: Template generates but `post_scaffold` hook fails
+
+**Common Causes**:
+- Invalid syntax in generated files
+- Missing dependencies for formatting tools
+- Buildifier cannot parse BUILD files
+- Python/Go modules not properly configured
+
+**Solution**: Generate the project and run hook steps manually:
+
+```bash
+# Generate without running hooks
+SCAFFOLD_SETTINGS_RUN_HOOKS=never scaffold new --output-dir=/tmp/test --preset=py --no-prompt .
+
+cd /tmp/test
+
+# Run each hook step individually to identify the failure
+bazel run @buildifier_prebuilt//:buildifier -- -r .
+bazel run //tools/format
+./tools/repin
+```
+
 ### Automated Template Testing
 
 Create a comprehensive test script:

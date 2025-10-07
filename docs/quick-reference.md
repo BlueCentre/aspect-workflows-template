@@ -299,6 +299,27 @@ bazel run //tools:bazel_env
 direnv reload
 ```
 
+### Template Error: "function not defined"
+
+**Error**: `fatal: template: scaffold:XXXX: function "include" not defined`
+
+**Cause**: Files contain template syntax that conflicts with Scaffold's Go templates (e.g., Helm charts).
+
+**Solution**: Add to `skip` list in `scaffold.yaml`:
+
+```yaml
+skip:
+  - "**/infrastructure/**/helm_values/**/*.yaml"
+  - "**/*.gotmpl"
+```
+
+**Test Fix**:
+```bash
+./test.sh kitchen-sink
+```
+
+See [Template System Troubleshooting](./contributor-guide/template-system.md#template-delimiters-conflict) for details.
+
 ### "Build is slow"
 
 ```bash
