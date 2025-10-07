@@ -18,3 +18,21 @@ node_modules/
 {{ if .Computed.python }}
 *.venv/
 {{ end }}
+
+# Environment variables
+.env
+!.env.example
+
+# Terraform variables
+*.tfvars
+!*.tfvars.example
+
+# Terraform state files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# Pulumi state files
+Pulumi.*.yaml
+!Pulumi.*.yaml.example

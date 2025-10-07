@@ -1,0 +1,74 @@
+# MetalLB Helm Values
+# MetalLB provides LoadBalancer service support for bare-metal Kubernetes clusters
+
+# Controller configuration
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    fsGroup: 65534
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+      - ALL
+
+# Speaker configuration (runs on each node)
+speaker:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  # Tolerations for speaker to run on all nodes
+  tolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  
+  # Ensure speaker runs on all nodes
+  daemonsetTolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+  # FRR mode is recommended for production
+  frr:
+    enabled: false  # Using L2 mode for simplicity in local dev
+
+# Prometheus metrics
+prometheus:
+  serviceMonitor:
+    enabled: false  # Enable if you have Prometheus operator
+  
+  prometheusRule:
+    enabled: false
+
+# RBAC
+rbac:
+  create: true
+
+# Service Account
+serviceAccounts:
+  controller:
+    create: true
+  speaker:
+    create: true

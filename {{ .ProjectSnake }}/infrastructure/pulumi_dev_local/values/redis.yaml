@@ -1,0 +1,132 @@
+# Redis Helm Chart Values Reference
+# See https://github.com/bitnami/charts/blob/main/bitnami/redis/values.yaml
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Custom labels for all resources
+commonLabels:
+  app.kubernetes.io/part-of: platform-infrastructure
+  app.kubernetes.io/managed-by: pulumi
+
+# Bitnami Legacy
+image:
+  registry: docker.io
+  repository: bitnamilegacy/redis
+  tag: 8.2.1-debian-12-r0
+  digest: ""
+  ## Specify a imagePullPolicy
+  ## ref: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
+  ##
+  pullPolicy: IfNotPresent
+  ## Optionally specify an array of imagePullSecrets.
+  ## Secrets must be manually created in the namespace.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ## e.g:
+  ## pullSecrets:
+  ##   - myRegistryKeySecretName
+  ##
+  pullSecrets: []
+  ## Enable debug mode
+  ##
+  debug: false
+
+# Authentication configuration
+auth:
+  enabled: true
+  sentinel: false
+  usePasswordFiles: false
+  # password will be provided by config
+
+# Redis master configuration
+master:
+  persistence:
+    enabled: true
+    size: 8Gi
+    medium: ""
+    path: /data
+    storageClass: ""
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+    annotations:
+      app.kubernetes.io/purpose: multi-tenant
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+  podSecurityContext:
+    fsGroup: 1001
+  containerSecurityContext:
+    runAsUser: 1001
+
+# Redis replica configuration
+replica:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    size: 8Gi
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+    annotations:
+      app.kubernetes.io/purpose: multi-tenant
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+# Sentinel configuration if needed for high availability
+sentinel:
+  enabled: false
+  masterSet: mymaster
+
+# Metrics using the Prometheus exporter
+metrics:
+  enabled: true
+  ## Bitnami Redis(R) Exporter image
+  ## ref: https://hub.docker.com/r/bitnami/redis-exporter/tags/
+  ## @param metrics.image.registry [default: REGISTRY_NAME] Redis(R) Exporter image registry
+  ## @param metrics.image.repository [default: REPOSITORY_NAME/redis-exporter] Redis(R) Exporter image repository
+  ## @skip metrics.image.tag Redis(R) Exporter image tag (immutable tags are recommended)
+  ## @param metrics.image.digest Redis(R) Exporter image digest in the way sha256:aa.... Please note this parameter, if set, will override the tag
+  ## @param metrics.image.pullPolicy Redis(R) Exporter image pull policy
+  ## @param metrics.image.pullSecrets Redis(R) Exporter image pull secrets
+  ##
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis-exporter
+    tag: 1.76.0-debian-12-r0
+    digest: ""
+    pullPolicy: IfNotPresent
+    ## Optionally specify an array of imagePullSecrets.
+    ## Secrets must be manually created in the namespace.
+    ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+    ## e.g:
+    ## pullSecrets:
+    ##   - myRegistryKeySecretName
+    ##
+    pullSecrets: []
+  serviceMonitor:
+    enabled: false
+
+networkPolicy:
+  enabled: true
+  allowExternal: true
+
+# Redis Configuration Values
+commonConfiguration: |
+  # Enable AOF persistence
+  appendonly yes
+  # Disable RDB persistence
+  save ""

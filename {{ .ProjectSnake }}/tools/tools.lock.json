@@ -199,7 +199,7 @@
         "kind": "archive",
         "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz",
         "file": "google-cloud-sdk/bin/gcloud",
-        "sha256": "1bd66d2f4bf45ebfcfdc98b109c262ad022af9d8ce9ebad8afa06faa48620e0e",
+        "sha256": "1977ce3342f1404f3c07521641c692072b6dfd4317596a14f071903c1f3d5ed0",
         "os": "linux",
         "cpu": "x86_64"
       },
@@ -207,7 +207,7 @@
         "kind": "archive",
         "url": "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-arm.tar.gz",
         "file": "google-cloud-sdk/bin/gcloud",
-        "sha256": "6882d3255f5cd78b2016665a9f251b94e75106432ff677d288e99e78470a1950",
+        "sha256": "a2afd7085ed73fbe4c7c343b31d70c017ebc29acfe1eb8e9381cc509ffde12c0",
         "os": "linux",
         "cpu": "arm64"
       },

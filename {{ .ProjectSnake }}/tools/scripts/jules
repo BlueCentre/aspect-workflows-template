@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [ "$#" -eq 0 ]; then
+  npx -y @google/jules
+else
+  npx -y @google/jules "$@"
+fi
