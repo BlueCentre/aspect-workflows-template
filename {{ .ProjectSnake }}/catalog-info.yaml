@@ -1,6 +1,9 @@
+# Backstage catalog-info.yaml
+# See https://backstage.io/docs/features/software-catalog/descriptor-format
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  # Note: {{ "{{" }} .ProjectKebab {{ "}}" }} will be replaced by scaffold with the project name
   name: {{ "{{" }} .ProjectKebab {{ "}}" }}
   description: Bazel project using Aspect Workflows
   tags:
@@ -34,4 +37,5 @@ metadata:
 spec:
   type: service
   lifecycle: production
+  # TODO: Update owner to match your team/organization
   owner: team-platform
