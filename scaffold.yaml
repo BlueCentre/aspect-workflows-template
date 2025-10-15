@@ -1,4 +1,5 @@
 # yaml-language-server: $schema=https://hay-kot.github.io/scaffold/schema.json
+# https://hay-kot.github.io/scaffold/projects/creating-projects.html
 metadata:
   minumum_version: v0.6.1
 messages:
@@ -148,6 +149,10 @@ computed:
   cpp: "{{ has \"C & C++\" .Scaffold.langs }}"
   rust: "{{ has \"Rust\" .Scaffold.langs }}"
   shell: "{{ has \"Shell (Bash)\" .Scaffold.langs }}"
+  # Kitchen-sink preset has all languages enabled
+  kitchen_sink: "{{ and (has \"JavaScript & TypeScript\" .Scaffold.langs) (has \"Python\" .Scaffold.langs) (has \"Go\" .Scaffold.langs) (has \"Java\" .Scaffold.langs) (has \"Kotlin\" .Scaffold.langs) (has \"C & C++\" .Scaffold.langs) (has \"Rust\" .Scaffold.langs) (has \"Shell (Bash)\" .Scaffold.langs) }}"
+  # Minimal preset has no languages enabled
+  minimal: "{{ eq (len .Scaffold.langs) 0 }}"
   # Do we need to bazel_dep on platforms?
   platforms: "{{ .Scaffold.oci }}"
 presets:
