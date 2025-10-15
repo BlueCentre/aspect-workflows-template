@@ -53,6 +53,7 @@ jobs:
                 git commit -a -m "chore: scaffold generated template"
                 echo "dir=$PWD" >> $GITHUB_OUTPUT
 
+            # TODO: Switch to GitHub App Token approach (https://github.com/marketplace/actions/create-github-app-token)
             - name: Convert preset name to deploy secret name
               id: which-secret
               run: |
