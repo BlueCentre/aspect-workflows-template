@@ -1,0 +1,37 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {{ "{{" }} .ProjectKebab {{ "}}" }}
+  description: Bazel project using Aspect Workflows
+  tags:
+    - bazel
+    - aspect-workflows
+{{- if .Computed.javascript }}
+    - javascript
+    - typescript
+{{- end }}
+{{- if .Computed.python }}
+    - python
+{{- end }}
+{{- if .Computed.go }}
+    - go
+{{- end }}
+{{- if .Computed.java }}
+    - java
+{{- end }}
+{{- if .Computed.kotlin }}
+    - kotlin
+{{- end }}
+{{- if .Computed.cpp }}
+    - cpp
+{{- end }}
+{{- if .Computed.rust }}
+    - rust
+{{- end }}
+{{- if .Computed.shell }}
+    - shell
+{{- end }}
+spec:
+  type: service
+  lifecycle: production
+  owner: team-platform

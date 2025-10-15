@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: aspect-workflows-template
+  description: Scaffold for basic Aspect Workflows project - Generate boilerplate code for a new Bazel project using Aspect CLI and Aspect Workflows
+  annotations:
+    github.com/project-slug: BlueCentre/aspect-workflows-template
+  tags:
+    - bazel
+    - aspect-workflows
+    - template
+    - scaffold
+  links:
+    - url: https://github.com/BlueCentre/aspect-workflows-template
+      title: Repository
+      icon: github
+spec:
+  type: template
+  lifecycle: production
+  owner: team-infrastructure
