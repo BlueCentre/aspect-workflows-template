@@ -1,4 +1,5 @@
 # yaml-language-server: $schema=https://hay-kot.github.io/scaffold/schema.json
+# https://hay-kot.github.io/scaffold/projects/creating-projects.html
 metadata:
   minumum_version: v0.6.1
 messages:
