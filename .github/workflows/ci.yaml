@@ -21,6 +21,16 @@ jobs:
                     - py
                     - rust
                     - shell
+                    - backstage-cpp
+                    - backstage-go
+                    - backstage-java
+                    - backstage-kotlin
+                    - backstage-js
+                    - backstage-kitchen-sink
+                    - backstage-minimal
+                    - backstage-py
+                    - backstage-rust
+                    - backstage-shell
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
