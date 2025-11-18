@@ -20,8 +20,15 @@ js_library(
 )
 
 js_library(
-    name = "prettierrc",
+    name = "prettier_config",
     srcs = ["prettier.config.cjs"],
+    deps = [],
+    visibility = ["//tools/format:__pkg__"],
+)
+
+js_library(
+    name = "prettier_ignore",
+    srcs = [".prettierignore"],
     deps = [],
     visibility = ["//tools/format:__pkg__"],
 )
@@ -42,6 +49,10 @@ exports_files([
 {{ end }}
 {{ if .Computed.shell }}
     ".shellcheckrc",
+{{ end }}
+{{ if .Computed.javascript }}
+    "prettier.config.cjs",
+    ".prettierignore",
 {{ end }}
 ], visibility = ["//:__subpackages__"])
 {{ end }}
