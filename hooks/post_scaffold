@@ -2,6 +2,58 @@
 
 cd {{ .ProjectSnake }}
 
+{{ if .Scaffold.backstage }}
+# Setup Backstage skeleton structure with symlinks
+echo "🔗 Setting up Backstage template skeleton structure..."
+
+SKELETON_DIR="skeleton"
+
+# Only proceed if skeleton directory was created
+if [ ! -d "$SKELETON_DIR" ]; then
+    echo "⚠️  Skeleton directory not found, skipping symlink creation"
+else
+    # Files that should NOT be symlinked (need Backstage variable substitution)
+    EXCLUDE_FROM_SYMLINK="template.yaml catalog-info.yaml skeleton README.bazel.md README.md"
+    
+    symlink_count=0
+    
+    # Create symlinks for all files/directories in current directory
+    for item in * .*; do
+        # Skip . and ..
+        if [ "$item" = "." ] || [ "$item" = ".." ]; then
+            continue
+        fi
+        
+        # Skip excluded files
+        should_exclude=0
+        for exclude in $EXCLUDE_FROM_SYMLINK; do
+            if [ "$item" = "$exclude" ]; then
+                should_exclude=1
+                break
+            fi
+        done
+        
+        if [ $should_exclude -eq 1 ]; then
+            continue
+        fi
+        
+        # Skip if already exists in skeleton
+        if [ -e "skeleton/$item" ]; then
+            continue
+        fi
+        
+        # Create symlink
+        if [ -e "$item" ]; then
+            echo "  🔗 Linking: ../$item → skeleton/$item"
+            ln -sf "../$item" "skeleton/$item"
+            symlink_count=$((symlink_count + 1))
+        fi
+    done
+    
+    echo "✅ Created $symlink_count symlinks in skeleton/"
+fi
+{{ end }}
+
 # Format all Starlark files (i.e. BUILD, WORKSPACE, .bzl, or .sky) in this directory recursively
 set +o errexit # ignore exit code
 # Exits nonzero if it makes changes, and we expect that
