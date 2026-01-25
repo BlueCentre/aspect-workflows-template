@@ -13,14 +13,17 @@ This repo includes:
 - ✅ Pre-commit hooks for automatic linting and formatting
 
 
-## Developer environment
+## Setup dev environment
 
-First, setup the developer environment by running <code>direnv allow</code> and follow any prompts.
-This ensures that tools we call in the following steps will be on the PATH.
+First, we recommend you setup a Bazel-based developer environment with direnv.
 
-~~~sh
-direnv allow .
-~~~
+1. install https://direnv.net/docs/installation.html
+1. run <code>direnv allow</code> and follow the prompts to <code>bazel run //tools:bazel_env</code>
+
+This isn't strictly required, but the commands which follow assume that needed tools are on the PATH,
+so skipping `direnv` means you're responsible for installing them yourself.
+
+## Try it out
 
 Many commands are available on the PATH thanks to direnv:
 

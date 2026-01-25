@@ -14,14 +14,17 @@ This repo includes:
 - 📚 PyPI package manager integration
 - 🎨 Type-checking with [ty](https://docs.astral.sh/ty/)
 
+## Setup dev environment
+
+First, we recommend you setup a Bazel-based developer environment with direnv.
+
+1. install https://direnv.net/docs/installation.html
+1. run <code>direnv allow</code> and follow the prompts to <code>bazel run //tools:bazel_env</code>
+
+This isn't strictly required, but the commands which follow assume that needed tools are on the PATH,
+so skipping `direnv` means you're responsible for installing them yourself.
+
 ## Try it out
-
-First, setup the developer environment by running <code>direnv allow</code> and follow any prompts.
-This ensures that tools we call in the following steps will be on the PATH.
-
-~~~sh
-direnv allow .
-~~~
 
 Create a simple application with an external package dependency:
 
