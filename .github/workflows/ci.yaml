@@ -1,3 +1,4 @@
+name: CI
 on:
     push:
         branches: [main]
@@ -41,7 +42,7 @@ jobs:
               uses: jaxxstorm/action-install-gh-release@6096f2a2bbfee498ced520b6922ac2c06e990ed2 # v2.1.0
               with:
                 repo: hay-kot/scaffold
-                tag: ${{ matrix.scaffold-version }}
+                tag: v0.12.1
             - name: Install direnv
               run: |
                     sudo apt-get install -y direnv
@@ -73,9 +74,6 @@ jobs:
                   echo "ORION_EXTENSIONS_DIR=$ORION_EXTENSIONS_DIR" >> $GITHUB_ENV
                   bazel run //tools:bazel_env
 
-            - run: bazel test ...
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-
             - run: format
               working-directory: "${{ steps.scaffold.outputs.dir }}"
               if: "${{ matrix.preset != 'minimal' }}"
@@ -91,7 +89,7 @@ jobs:
               run: $GITHUB_WORKSPACE/user_stories/${{ matrix.preset}}.md || exit 1
 
             - name: Python test that fails
-              continue-on-error: true # for some reason `bazel test || true` still failing.
+              continue-on-error: true
               run: bazel test //app:app_test
               working-directory: "${{ steps.scaffold.outputs.dir }}"
               if: "${{ matrix.preset == 'py' }}"

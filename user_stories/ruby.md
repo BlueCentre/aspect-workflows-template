@@ -6,11 +6,17 @@
     alias ~~~=":<<'~~~sh'";:<<'~~~sh'
 
 This repo includes:
+
 - 🧱 Latest version of Bazel and dependencies
 - 📦 Curated bazelrc flags via [bazelrc-preset.bzl]
 - 🧰 Developer environment setup with [bazel_env.bzl]
 - 🎨 `rubocop` and `standard`, using rules_lint
 - ✅ Pre-commit hooks for automatic linting and formatting
+
+> [!NOTE]
+> You can customize languages and features with the interactive wizard in the <code>aspect init</code> command.
+> <code>init</code> is an alternative to this starter repo, which was generated using the 'ruby' preset.
+> See https://docs.aspect.build/cli/overview
 
 ## Setup dev environment
 
@@ -29,7 +35,9 @@ Write a simple Ruby application:
 ~~~sh
 mkdir app
 >app/hello.rb cat <<'EOF'
-require "faker"
+# frozen_string_literal: true
+
+require 'faker'
 puts "Hello, #{Faker::Name.name} from Bazel + Ruby!"
 EOF
 ~~~
@@ -58,6 +66,7 @@ EOF
 ~~~
 
 Run it to see the result:
+
 > (Note that Bundle will spam the stdout with install information, so we just want the last line)
 
 ~~~sh
@@ -71,6 +80,14 @@ echo "${output}" | grep -qE "^Hello, .+ from Bazel \\+ Ruby!$" || {
     echo >&2 "Wanted output matching 'Hello, <name> from Bazel + Ruby!' but got '${output}'"
     exit 1
 }
+~~~
+
+## Linting
+
+We can lint the code with rubocop, by running the Aspect CLI:
+
+~~~sh
+aspect lint
 ~~~
 
 ## Proto & gRPC
@@ -173,3 +190,4 @@ echo "$response" | grep -q "Hello from Bazel + Ruby gRPC server!" || {
     exit 1
 }
 ~~~
+```
