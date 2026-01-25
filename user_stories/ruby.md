@@ -134,7 +134,7 @@ server.run_till_terminated
 EOF
 ~~~
 
-Declare the depnedency on the `proto_library`:
+Declare a dependency on the `proto_library` target:
 
 ~~~sh
 buildozer "add deps //proto:foo_proto" app:hello
@@ -143,6 +143,12 @@ buildozer "add deps //proto:foo_proto" app:hello
 Finally run it, verify the gRPC service responds, then shut it down:
 
 ~~~sh
+cleanup() {
+    kill $server_pid 2>/dev/null
+    wait $server_pid 2>/dev/null || true
+}
+trap cleanup EXIT
+
 bazel run app:hello &
 server_pid=$!
 
@@ -156,7 +162,6 @@ for i in $(seq 1 6); do
     fi
     if [ $i -eq 6 ]; then
         echo >&2 "Timed out waiting for server to start"
-        kill $server_pid 2>/dev/null
         exit 1
     fi
     sleep 5
@@ -165,11 +170,6 @@ done
 # Verify the response
 echo "$response" | grep -q "Hello from Bazel + Ruby gRPC server!" || {
     echo >&2 "Unexpected response: $response"
-    kill $server_pid 2>/dev/null
     exit 1
 }
-
-# Clean up
-kill $server_pid 2>/dev/null
-wait $server_pid 2>/dev/null || true
 ~~~
