@@ -15,14 +15,21 @@ load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 {{ end -}}
 {{ if .Computed.python -}}
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
+load("@aspect_rules_lint//lint:ty.bzl", "lint_ty_aspect")
 {{ end -}}
 {{ if .Computed.shell }}
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 {{ end -}}
+{{ if .Computed.rust -}}
+load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
+{{ end -}}
+{{ if .Computed.ruby -}}
+load("@aspect_rules_lint//lint:rubocop.bzl", "lint_rubocop_aspect")
+{{ end -}}
 
 {{ if .Computed.cpp -}}
 clang_tidy = lint_clang_tidy_aspect(
-    binary = Label(":clang_tidy"),
+    binary = Label("//tools/lint:clang_tidy"),
     configs = [Label("//:.clang-tidy")],
     lint_target_headers = True,
     angle_includes_are_system = False,
@@ -66,6 +73,11 @@ ruff = lint_ruff_aspect(
 
 ruff_test = lint_test(aspect = ruff)
 
+ty = lint_ty_aspect(
+    binary = Label("@aspect_rules_lint//lint:ty_bin"),
+    config = Label("@//:pyproject.toml"),
+)
+
 {{ end -}}
 {{ if .Computed.shell }}
 shellcheck = lint_shellcheck_aspect(
@@ -74,4 +86,15 @@ shellcheck = lint_shellcheck_aspect(
 )
 
 shellcheck_test = lint_test(aspect = shellcheck)
+{{ end -}}
+{{ if .Computed.rust -}}
+clippy = lint_clippy_aspect(
+    config = Label("//:.clippy.toml"),
+)
+{{ end -}}
+{{ if .Computed.ruby -}}
+rubocop = lint_rubocop_aspect(
+    binary = Label("@bundle//bin:rubocop"),
+    configs = [Label("//:.rubocop.yml")],
+)
 {{ end -}}
