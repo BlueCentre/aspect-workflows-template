@@ -4,15 +4,15 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.7.2/aspect-cli-x86_64-unknown-linux-musl",
-        "sha256": "52529361675caef2e28602c1e0c43143c0a4b7b243d3ce868c3e2115940fbe91",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.13.5/aspect-cli-x86_64-unknown-linux-musl",
+        "sha256": "a07bea23bc0904e299f59524bcfdfaacfdb427b38769ad38993ce00a88077c31",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.7.2/aspect-cli-aarch64-apple-darwin",
-        "sha256": "f0a7ee971571280ebbaf845d4c38585d5e230976e2b4343afdb9854a82b2c546",
+        "url": "https://github.com/aspect-build/aspect-cli/releases/download/v2026.13.5/aspect-cli-aarch64-apple-darwin",
+        "sha256": "9f71b08dcc55322c7757ecc22dc982a165910db719bd93e56167315bc0f76ceb",
         "os": "macos",
         "cpu": "arm64"
       }
@@ -22,29 +22,29 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.0/buf-Linux-aarch64",
-        "sha256": "f8a77dbcbf492836e0e1bca2f2c9dbb5392a5bb47db161be89d811f36b86ee30",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.1/buf-Linux-aarch64",
+        "sha256": "76610016cad907feb304f3827652ef31b54c64f297a3a0a15dbb975a810d1445",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.0/buf-Linux-x86_64",
-        "sha256": "32e8e7b236e1b9da4eb20ad3c7701a404f7909b18d60f6d00837c63b31d4e6cf",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.1/buf-Linux-x86_64",
+        "sha256": "ef835cb38ed973849f68e0e6a88153cb2168507e09eecbec43a2ada2f6a698be",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.0/buf-Darwin-arm64",
-        "sha256": "fada70b88da222684e9afaf0f9e407a673a7d61808fa93c7ffabc8cc11b9ec67",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.1/buf-Darwin-arm64",
+        "sha256": "5f9e73da4459339ba5eb895d8990d3876346def1ba8aa34437faf3c2c4715f3a",
         "os": "macos",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bufbuild/buf/releases/download/v1.39.0/buf-Darwin-x86_64",
-        "sha256": "b44da381dfc9980aed822476d12645f981761ea8ac7f135772d9f02246c8ac31",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.66.1/buf-Darwin-x86_64",
+        "sha256": "cb318ed083b3e2d8d71aae7eea88ce7f943da271ed03f3e507a387f54f6380e8",
         "os": "macos",
         "cpu": "x86_64"
       }
@@ -111,22 +111,22 @@
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_arm64",
-        "sha256": "85ef4c7a9a1429e1b3d17ba4f6702e61acb24e5510d006e1fd99d0de4bcd07c0",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.1/ibazel_linux_arm64",
+        "sha256": "8442657041a3b3a6a436584ed6edc1f8ae11ae4bb67436c7805eaa206fcf56d1",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_linux_amd64",
-        "sha256": "17d412c34afeba69f9d05b6d1ea44848ffd4fdc18ebcd1f524b3699d1de0630e",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.1/ibazel_linux_amd64",
+        "sha256": "5e55e1358b28f30248b4468ad34c4ae078cdbdd7c141a15757c44384409b0a18",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.0/ibazel_darwin_arm64",
-        "sha256": "5dddbfe170ab2063d1517fea526b27731893ed561c78776c9bea20b4caafa11e",
+        "url": "https://github.com/bazelbuild/bazel-watcher/releases/download/v0.28.1/ibazel_darwin_arm64",
+        "sha256": "b91f0808f882e148f6307bdd56af3956f3e823ec0d3c4c647a3f908f4bdf26cb",
         "os": "macos",
         "cpu": "arm64"
       }
