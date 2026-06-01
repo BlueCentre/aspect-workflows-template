@@ -96,12 +96,13 @@ mkdir -p tools
   echo "common:remote --jobs=50"
   echo "common:remote --remote_download_outputs=minimal"
   echo "# Default Linux execution platform/container for RBE actions. The image must"
-  echo "# ship a modern glibc (>=2.28) for current Node/Python toolchains — BuildBuddy's"
-  echo "# old executor-docker-default (Ubuntu 16.04) is too old and breaks Node. Adjust"
-  echo "# to match your toolchains. NOTE: macOS targets cannot run on Linux RBE — keep"
-  echo "# them local (e.g. --strategy=...=local). See docs/remote-build.md."
+  echo "# ship a modern glibc (>=2.28) for current Node/Python toolchains AND a modern"
+  echo "# git (>=2.28) for tools/tests that use 'git init -b', 'git switch', etc. Ubuntu"
+  echo "# 22.04 (rbe-ubuntu22-04) gives git 2.34 / glibc 2.35; the older 20.04 image"
+  echo "# ships git 2.25. Adjust to match your toolchains. NOTE: macOS targets cannot run"
+  echo "# on Linux RBE — keep them local (e.g. --strategy=...=local). See docs/remote-build.md."
   echo "common:remote --remote_default_exec_properties=OSFamily=linux"
-  echo "common:remote --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu20-04:latest"
+  echo "common:remote --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu22-04:latest"
 } > tools/remote.bazelrc
 echo "✓ Wrote tools/remote.bazelrc (commit this — it is non-secret)."
 

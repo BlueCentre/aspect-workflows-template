@@ -89,11 +89,14 @@ remote exec platform.
 ## Execution image
 
 RBE actions run inside the container set by `container-image` in
-`tools/remote.bazelrc`. The default is `gcr.io/flame-public/rbe-ubuntu20-04`
-(Ubuntu 20.04, glibc 2.31) — modern enough for current Node/Python toolchains.
-Avoid BuildBuddy's older `executor-docker-default` (Ubuntu 16.04): its glibc is
-too old and Node fails with `version 'GLIBC_2.28' not found`. If your build needs
-a newer runtime or extra system packages, point `container-image` at a suitable
+`tools/remote.bazelrc`. The default is `gcr.io/flame-public/rbe-ubuntu22-04`
+(Ubuntu 22.04, glibc 2.35, git 2.34) — modern enough for current Node/Python
+toolchains and for tools/tests that use git ≥2.28 features (`git init -b`,
+`git switch`, …). The older `rbe-ubuntu20-04` ships git 2.25, so `git init -b`
+fails on the executor with `unknown switch 'b'`; avoid BuildBuddy's
+`executor-docker-default` (Ubuntu 16.04) entirely — its glibc is too old and Node
+fails with `version 'GLIBC_2.28' not found`. If your build needs a newer runtime
+or extra system packages, point `container-image` at a suitable
 image.
 
 ## Non-interactive use
