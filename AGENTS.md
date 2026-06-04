@@ -1,0 +1,35 @@
+# AGENTS.md
+
+Guidance for AI coding agents working on the **Aspect Workflows starter template**
+(useful for humans too). This repo is a **scaffolding template** (hay-kot/scaffold),
+not a buildable app: it *generates* hermetic Bazel monorepos.
+
+## Layout
+- `{{ .ProjectSnake }}/` — the **delivered tree**: everything here is rendered into a
+  generated repo. Files use Go-template syntax (`{{ ... }}`).
+- `scaffold.yaml` — questions, the `computed` language booleans (`.Computed.python`, …),
+  and `features:` globs that gate which files ship for a given selection.
+- `user_stories/` — per-preset **executable** smoke tests (run in CI; they also become the
+  starter READMEs). See `user_stories/STRUCTURE.md`.
+- `docs/` — template *product* docs (admin/user/contributor guides). **Not delivered.**
+
+## Editing the delivered tree — landmines
+- **Per-language** content is gated `{{ if .Computed.<lang> }} … {{ end }}`; **per-feature**
+  with `{{ if .Scaffold.<feature> }}` (e.g. `copybara`, `lint`, `license`, `oci`).
+- `{{` / `}}` are the template delimiters. **Never put a literal `{{` in a delivered file
+  unless escaped** — e.g. a Mermaid hexagon `{{…}}` gets eaten by the renderer; use a
+  different node shape. Keep delimiters balanced.
+- A new per-language file needs a matching `features:` glob in `scaffold.yaml` gated on
+  `.Computed.<lang>` (see `docs/contributor-guide/adding-languages.md`).
+
+## Testing
+- CI renders **every preset** (the preset matrix) and runs the `user_stories`.
+- **You cannot fully test a starter in isolation** — many bugs only surface once rendered.
+  The convention: render via CI, then **port the change into `vitruvian-core`** and build it
+  there. That repo is the real test bed for template changes (it was generated from the
+  `kitchen-sink` starter and is maintained by hand).
+
+## Conventions
+- **Conventional commits** (`feat:`, `fix:`, `chore:`, `docs:` …).
+- Generated repos themselves ship an `AGENTS.md` (`{{ .ProjectSnake }}/AGENTS.md`) — keep the
+  two in mind: this file is for working *on the template*; that one is for the *generated repo*.
