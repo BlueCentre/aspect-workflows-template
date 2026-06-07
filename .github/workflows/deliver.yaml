@@ -49,6 +49,9 @@ jobs:
                 scaffold new --preset=${{ matrix.preset }} --no-prompt $GITHUB_WORKSPACE
                 cd scaffold_test*
                 cp $GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md README.md
+                # Ship the platform CHANGELOG (maintained by release-please) so a developer who
+                # generated from this starter can track what changed upstream and decide what to port.
+                if [ -f "$GITHUB_WORKSPACE/CHANGELOG.md" ]; then cp "$GITHUB_WORKSPACE/CHANGELOG.md" CHANGELOG.md; fi
                 git init
                 git add .
                 git config user.email "git@nocentre.net"

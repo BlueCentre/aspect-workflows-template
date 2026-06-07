@@ -1,0 +1,24 @@
+name: release-please
+
+# Maintains an accumulating, versioned CHANGELOG.md for the platform from this
+# repo's conventional commits, and cuts releases. `deliver.yaml` copies the
+# resulting CHANGELOG.md into every starter repo, so a developer who generated
+# their project from a starter can track what changed upstream and decide what
+# to port. See docs/admin-guide/release-management.md.
+on:
+    push:
+        branches: [platform-v2.0]
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    release-please:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+              with:
+                token: ${{ secrets.RELEASE_AUTOMATION_TOKEN }}
+                config-file: release-please-config.json
+                manifest-file: .release-please-manifest.json
