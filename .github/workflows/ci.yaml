@@ -8,6 +8,9 @@ on:
 jobs:        
     test:
         strategy:
+            # Let every preset leg run to completion: one failing leg cancelling
+            # the rest hides whether the failure is preset-specific or global.
+            fail-fast: false
             matrix:
                 scaffold-version:
                     - v0.12.1
