@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.1.0...v2.2.0) (2026-06-12)
+
+
+### Features
+
+* **bazel:** upgrade Bazel 9.0.0 -&gt; 9.1.1 ([#31](https://github.com/VitruvianSoftware/aspect-workflows-template/issues/31)) ([e7a687a](https://github.com/VitruvianSoftware/aspect-workflows-template/commit/e7a687aab59ec31425e8366eafec5411b7804ace))
+
 ## [2.1.0](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.0.0...v2.1.0) (2026-06-07)
 
 
