@@ -8,6 +8,13 @@ bazel_dep(name = "apple_support", version = "2.2.0")
 {{- if .Scaffold.lint }}
 bazel_dep(name = "aspect_rules_lint", version = "2.0.0")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.1")
+{{- if not .Computed.javascript }}
+# Bazel 9: aspect_rules_lint -> aspect_rules_js pulls rules_nodejs transitively;
+# versions before 6.7.3 load the removed CcInfo builtin and fail analysis on
+# Bazel >= 9.0.1 (https://github.com/bazelbuild/bazel/pull/28360 surfaces it).
+# The javascript presets declare a direct rules_nodejs dep below instead.
+bazel_dep(name = "rules_nodejs", version = "6.7.3", repo_name = None)
+{{- end }}
 {{- end }}
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
