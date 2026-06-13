@@ -21,6 +21,13 @@ not a buildable app: it *generates* hermetic Bazel monorepos.
   different node shape. Keep delimiters balanced.
 - A new per-language file needs a matching `features:` glob in `scaffold.yaml` gated on
   `.Computed.<lang>` (see `docs/contributor-guide/adding-languages.md`).
+- **Every render must be a fixed point of `bazel run //:tidy`** (gazelle + format): the
+  starters run a Tidy Check on every push, so a render that gazelle/buildifier would
+  rewrite fails on delivery. Keep BUILD/MODULE templates buildifier-canonical for every
+  preset: loads at the top (sorted), rule attributes sorted (`name` first, `deps`/
+  `visibility` last), trailing commas, single blank lines between paragraphs, no trailing
+  blank lines. Control whitespace with `{{- if }}`-style trims — the CI "Tidy made
+  no changes" step renders every preset and fails on any drift.
 
 ## Testing
 - CI renders **every preset** (the preset matrix) and runs the `user_stories`.

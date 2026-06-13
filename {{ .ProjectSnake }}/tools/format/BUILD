@@ -5,19 +5,26 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 """
 
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
+{{- if .Computed.javascript }}
+load("@npm//:prettier/package_json.bzl", prettier = "bin")
+{{- end }}
+{{- if .Computed.kotlin }}
+load("@rules_java//java:java_binary.bzl", "java_binary")
+{{- end }}
 
 # gazelle:exclude
 package(default_visibility = ["//:__subpackages__"])
-
-{{ if .Computed.javascript }}
-load("@npm//:prettier/package_json.bzl", prettier = "bin")
+{{- if .Computed.javascript }}
 
 prettier.prettier_binary(
     name = "prettier",
+    # Include this js_library and its dependencies in the runfiles (runtime dependencies)
+    data = [
+        "//:prettier_config",
+        "//:prettier_ignore",
+    ],
     # Allow the binary to be run outside bazel
     env = {"BAZEL_BINDIR": "."},
-    # Include this js_library and its dependencies in the runfiles (runtime dependencies)
-    data = ["//:prettier_config", "//:prettier_ignore"],
     fixed_args = [
         # `require` statements in the config file will be resolved relative to its location
         # Therefore to make it hermetic, prettier must be pointed at the copy of the config file
@@ -29,19 +36,17 @@ prettier.prettier_binary(
         "--log-level=warn",
     ],
 )
-{{ end }}
-
-{{ if .Computed.kotlin }}
-load("@rules_java//java:java_binary.bzl", "java_binary")
+{{- end }}
+{{- if .Computed.kotlin }}
 
 java_binary(
     name = "ktfmt",
     main_class = "com.facebook.ktfmt.cli.Main",
     runtime_deps = ["@ktfmt//jar"],
 )
-{{ end }}
+{{- end }}
+{{- if .Computed.swift }}
 
-{{ if .Computed.swift }}
 # SwiftFormat ships separate prebuilt binaries per OS; select the right one.
 # The @swiftformat / @swiftformat_mac repos come from the rules_lint format
 # tools extension declared in MODULE.bazel.
@@ -52,33 +57,33 @@ alias(
         "@bazel_tools//src/conditions:darwin": "@swiftformat_mac",
     }),
 )
-{{ end }}
+{{- end }}
 
 format_multirun(
     name = "format",
-{{ if .Computed.cpp}}
+{{- if .Computed.cpp }}
     cc = "@llvm_toolchain_llvm//:bin/clang-format",
-{{ end }}
-{{ if .Computed.go }}
+{{- end }}
+{{- if .Computed.go }}
     go = "@aspect_rules_lint//format:gofumpt",
-{{ end }}
-{{ if .Computed.javascript }}
+{{- end }}
+{{- if .Computed.javascript }}
     javascript = ":prettier",
-{{ end }}
-{{ if .Computed.kotlin }}
+{{- end }}
+{{- if .Computed.kotlin }}
     kotlin = ":ktfmt",
-{{ end }}
-{{ if .Computed.python }}
+{{- end }}
+{{- if .Computed.python }}
     python = "@aspect_rules_lint//format:ruff",
-{{ end }}
-{{ if .Computed.rust }}
+{{- end }}
+{{- if .Computed.rust }}
     rust = "@rules_rust//tools/rustfmt:upstream_rustfmt",
-{{ end }}
-{{ if .Computed.swift }}
-    swift = ":swiftformat",
-{{ end }}
-{{ if .Computed.shell }}
+{{- end }}
+{{- if .Computed.shell }}
     shell = "@aspect_rules_lint//format:shfmt",
-{{ end }}
+{{- end }}
     starlark = "@buildifier_prebuilt//:buildifier",
+{{- if .Computed.swift }}
+    swift = ":swiftformat",
+{{- end }}
 )

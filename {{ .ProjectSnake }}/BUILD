@@ -1,13 +1,27 @@
 """Targets in the repository root"""
 
-{{ if .Computed.javascript }}
+{{ if and .Computed.javascript .Scaffold.lint -}}
 load("@aspect_rules_js//js:defs.bzl", "js_library")
+{{ end -}}
+load("@gazelle//:def.bzl", "gazelle")
+{{- if .Computed.javascript }}
 load("@npm//:defs.bzl", "npm_link_all_packages")
+{{- end }}
+{{- if .Computed.python }}
+load("@pip//:requirements.bzl", "all_whl_requirements")
+{{- end }}
+load("@rules_multirun//:defs.bzl", "multirun")
+{{- if .Computed.python }}
+load("@rules_python_gazelle_plugin//manifest:defs.bzl", "gazelle_python_manifest")
+load("@rules_python_gazelle_plugin//modules_mapping:def.bzl", "modules_mapping")
+{{- end }}
+{{- if .Computed.javascript }}
 
 # TODO: remove once https://github.com/aspect-build/aspect-cli/issues/560 done
 # gazelle:js_npm_package_target_name pkg
 npm_link_all_packages(name = "node_modules")
-{{ if .Scaffold.lint }}
+{{- end }}
+{{- if and .Computed.javascript .Scaffold.lint }}
 
 js_library(
     name = "eslintrc",
@@ -22,53 +36,55 @@ js_library(
 js_library(
     name = "prettier_config",
     srcs = ["prettier.config.cjs"],
-    deps = [],
     visibility = ["//tools/format:__pkg__"],
+    deps = [],
 )
 
 js_library(
     name = "prettier_ignore",
     srcs = [".prettierignore"],
-    deps = [],
     visibility = ["//tools/format:__pkg__"],
+    deps = [],
 )
-{{ end }}
-{{ end }}
+{{- end }}
+{{- if and .Scaffold.lint (or .Computed.cpp .Computed.ruby .Computed.kotlin .Computed.java .Computed.shell .Computed.rust) }}
 
-{{ if .Scaffold.lint}}
-exports_files([
-{{ if .Computed.cpp }}
-    ".clang-tidy",
-{{ end }}
-{{ if .Computed.ruby }}
-    ".rubocop.yml",
-{{ end }}
-{{ if .Computed.kotlin }}
-    "ktlint-baseline.xml",
-    ".editorconfig",
-{{ end }}
-{{ if .Computed.java }}
-    "pmd.xml",
-{{ end }}
-{{ if .Computed.shell }}
-    ".shellcheckrc",
-{{ end }}
-{{ if .Computed.rust }}
-    ".clippy.toml",
-{{ end }}
-], visibility = ["//:__subpackages__"])
-{{ end }}
+exports_files(
+    [
+{{- if .Computed.cpp }}
+        ".clang-tidy",
+{{- end }}
+{{- if .Computed.ruby }}
+        ".rubocop.yml",
+{{- end }}
+{{- if .Computed.kotlin }}
+        "ktlint-baseline.xml",
+        ".editorconfig",
+{{- end }}
+{{- if .Computed.java }}
+        "pmd.xml",
+{{- end }}
+{{- if .Computed.shell }}
+        ".shellcheckrc",
+{{- end }}
+{{- if .Computed.rust }}
+        ".clippy.toml",
+{{- end }}
+    ],
+    visibility = ["//:__subpackages__"],
+)
+{{- end }}
+{{- if .Computed.go }}
 
-load("@gazelle//:def.bzl", "gazelle")
-
-{{ if .Computed.go }}
 # gazelle:prefix github.com/example/project
-{{ end }}
-{{ if .Computed.javascript }}
+{{- end }}
+{{- if .Computed.javascript }}
+
 # It's faster to avoid type-checking in a devserver when using monorepo packages.
 # If you commonly ship your npm packages outside the repo, change this to "npm_package"
 # gazelle:js_package_rule_kind js_library
-{{ end }}
+{{- end }}
+
 # We prefer BUILD instead of BUILD.bazel
 # gazelle:build_file_name BUILD
 # gazelle:exclude githooks/*
@@ -79,27 +95,39 @@ load("@gazelle//:def.bzl", "gazelle")
 # tools/pulumi holds a hand-authored macro (defs.bzl) + wrapper scripts; gazelle
 # would otherwise generate a bzl_library with an unresolvable rules_shell dep.
 # gazelle:exclude tools/pulumi
-{{ if .Scaffold.proto -}}
+{{- if .Scaffold.proto }}
 # Workaround https://github.com/bazel-contrib/bazel-gazelle/issues/2001
 # gazelle:map_kind proto_library proto_library @protobuf//bazel:proto_library.bzl
-{{- end }}
+{{ else }}
+
+{{ end -}}
 gazelle(
     name = "gazelle",
-    gazelle = "@multitool//tools/gazelle",
     env = {
         "ENABLE_LANGUAGES": ",".join([
             "starlark",
-            {{- if .Scaffold.proto }}"proto",{{ end }}
-            {{- if .Computed.go }}"go",{{ end }}
-            {{- if .Computed.kotlin }}"kotlin",{{ end }}
-            {{- if .Computed.python }}"python",{{ end }}
-            {{- if .Computed.javascript }}"js",{{ end }}
-            {{- if .Computed.cpp }}"cc",{{ end }}
+{{- if .Scaffold.proto }}
+            "proto",
+{{- end }}
+{{- if .Computed.go }}
+            "go",
+{{- end }}
+{{- if .Computed.kotlin }}
+            "kotlin",
+{{- end }}
+{{- if .Computed.python }}
+            "python",
+{{- end }}
+{{- if .Computed.javascript }}
+            "js",
+{{- end }}
+{{- if .Computed.cpp }}
+            "cc",
+{{- end }}
         ]),
-    }
+    },
+    gazelle = "@multitool//tools/gazelle",
 )
-
-load("@rules_multirun//:defs.bzl", "multirun")
 
 # One-command BUILD/source hygiene. Regenerates BUILD files (gazelle), refreshes
 # the Python deps manifest (when Python is enabled), then formats everything
@@ -120,11 +148,7 @@ multirun(
     ],
     jobs = 1,  # sequential: gazelle writes BUILD files, then format formats them
 )
-
-{{ if .Computed.python }}
-load("@pip//:requirements.bzl", "all_whl_requirements")
-load("@rules_python_gazelle_plugin//manifest:defs.bzl", "gazelle_python_manifest")
-load("@rules_python_gazelle_plugin//modules_mapping:def.bzl", "modules_mapping")
+{{- if .Computed.python }}
 
 exports_files(
     ["pyproject.toml"],
@@ -158,5 +182,4 @@ gazelle_python_manifest(
     modules_mapping = ":modules_map",
     pip_repository_name = "pip",
 )
-
-{{ end }}
+{{- end }}

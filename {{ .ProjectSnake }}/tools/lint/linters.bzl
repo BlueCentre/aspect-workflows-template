@@ -41,30 +41,33 @@
 {{ if .Computed.cpp -}}
 load("@aspect_rules_lint//lint:clang_tidy.bzl", "lint_clang_tidy_aspect")
 {{ end -}}
+{{ if .Computed.rust -}}
+load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
+{{ end -}}
 {{ if .Computed.javascript -}}
 load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
 {{ end -}}
-load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
 {{ if .Computed.kotlin -}}
 load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
 {{ end -}}
+load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
 {{ if .Computed.java -}}
 load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
-{{ end -}}
-{{ if .Computed.python -}}
-load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
-load("@aspect_rules_lint//lint:ty.bzl", "lint_ty_aspect")
-{{ end -}}
-{{ if .Computed.shell }}
-load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
-{{ end -}}
-{{ if .Computed.rust -}}
-load("@aspect_rules_lint//lint:clippy.bzl", "lint_clippy_aspect")
 {{ end -}}
 {{ if .Computed.ruby -}}
 load("@aspect_rules_lint//lint:rubocop.bzl", "lint_rubocop_aspect")
 {{ end -}}
-
+{{ if .Computed.python -}}
+load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
+{{ end -}}
+{{ if .Computed.shell -}}
+load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
+{{ end -}}
+{{ if .Computed.python -}}
+load("@aspect_rules_lint//lint:ty.bzl", "lint_ty_aspect")
+{{ end -}}
+{{ if or .Computed.cpp .Computed.kotlin .Computed.java .Computed.javascript .Computed.python .Computed.shell .Computed.rust .Computed.ruby }}
+{{ end -}}
 {{ if .Computed.cpp -}}
 clang_tidy = lint_clang_tidy_aspect(
     binary = Label("//tools/lint:clang_tidy"),
@@ -115,9 +118,10 @@ ty = lint_ty_aspect(
     binary = Label("@aspect_rules_lint//lint:ty_bin"),
     config = Label("@//:pyproject.toml"),
 )
-
+{{ if or .Computed.shell .Computed.rust .Computed.swift .Computed.ruby }}
 {{ end -}}
-{{ if .Computed.shell }}
+{{ end -}}
+{{ if .Computed.shell -}}
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
     config = Label("//:.shellcheckrc"),

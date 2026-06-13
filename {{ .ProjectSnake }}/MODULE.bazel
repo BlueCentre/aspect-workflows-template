@@ -1,11 +1,12 @@
-{{- if .Computed.platforms }}
+{{ if .Computed.platforms -}}
 # Currently bazel-lib is only load()ed when platforms is used.
 bazel_dep(name = "bazel_lib", version = "3.1.1")
-bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", repo_name = None) # force a recent version that works with v3
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", repo_name = None)  # force a recent version that works with v3
 bazel_dep(name = "platforms", version = "1.0.0")
-{{- end }}
+{{ end -}}
 bazel_dep(name = "apple_support", version = "2.2.0")
 {{- if .Scaffold.lint }}
+
 # 2.5.2: loads CcInfo from rules_cc (Bazel 9 removed the builtin; older
 # versions fail analysis of the clang-tidy linter aspect on Bazel >= 9.0.1).
 # Stay below 2.6.0, which moves clippy out of lint/ into a nested rules_rust
@@ -13,6 +14,7 @@ bazel_dep(name = "apple_support", version = "2.2.0")
 bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.1")
 {{- if not .Computed.javascript }}
+
 # Bazel 9: aspect_rules_lint -> aspect_rules_js pulls rules_nodejs transitively;
 # versions before 6.7.3 load the removed CcInfo builtin and fail analysis on
 # Bazel >= 9.0.1 (https://github.com/bazelbuild/bazel/pull/28360 surfaces it).
@@ -22,6 +24,7 @@ bazel_dep(name = "rules_nodejs", version = "6.7.3", repo_name = None)
 {{- end }}
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
+
 # Aggregates //:gazelle (+ python manifest) and //tools/format into //:tidy.
 bazel_dep(name = "rules_multirun", version = "0.13.0")
 bazel_dep(name = "bazel_env.bzl", version = "0.5.0")
@@ -32,6 +35,7 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.8.0")
 # See .bazelrc
 bazel_dep(name = "rules_python", version = "1.8.3")
 bazel_dep(name = "gazelle", version = "0.47.0")
+
 # rules_shell is unconditional: the always-shipped `//tools/remote:setup` sh_binary
 # (remote-build setup helper) needs it even when "Shell" isn't a selected language.
 bazel_dep(name = "rules_shell", version = "0.6.1")
@@ -43,22 +47,22 @@ bazel_dep(name = "tar.bzl", version = "0.8.1")
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//tools:tools.lock.json")
 use_repo(multitool, "multitool")
+{{- if .Scaffold.proto }}
 
-{{ if .Scaffold.proto -}}
 #########################
 # Protobuf and gRPC
 bazel_dep(name = "protobuf", version = "33.5")
 bazel_dep(name = "protovalidate", version = "1.0.0")
+
 # Force later resolutions of some transitives to pick up Bazel 9 fixes
 bazel_dep(name = "rules_foreign_cc", version = "0.15.1", repo_name = None)
 {{- if .Computed.java }}
 bazel_dep(name = "grpc-java", version = "1.78.0")
 bazel_dep(name = "bazel_jar_jar", version = "0.1.12", repo_name = None)
-
 {{- end }}
-
 {{- end }}
 {{- if .Computed.go_or_copybara }}
+
 #########################
 # Go
 bazel_dep(name = "rules_go", version = "0.59.0")
@@ -68,10 +72,9 @@ go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 # Download an SDK for the host OS & architecture as well as common remote execution
 # platforms, using the version given from the `go.mod` file.
 go_sdk.from_file(go_mod = "//:go.mod")
-
-{{ if .Scaffold.lint }}
+{{- if .Scaffold.lint }}
 go_sdk.nogo(nogo = "//tools/lint:nogo")
-{{ end }}
+{{- end }}
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
@@ -81,6 +84,7 @@ go_deps.from_file(go_mod = "//:go.mod")
 use_repo(go_deps, "com_github_hay_kot_scaffold")
 {{- end }}
 {{- if not .Computed.go_or_copybara }}
+
 # Bazel 9: gazelle and buildifier_prebuilt pull rules_go transitively; versions
 # before 0.59.0 load the removed CcInfo builtin (go/private/rules/cgo.bzl) and
 # fail analysis on Bazel >= 9.0.1 (https://github.com/bazelbuild/bazel/pull/28360
@@ -88,6 +92,7 @@ use_repo(go_deps, "com_github_hay_kot_scaffold")
 bazel_dep(name = "rules_go", version = "0.59.0", repo_name = None)
 {{- end }}
 {{- if .Computed.javascript }}
+
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
 bazel_dep(name = "rules_nodejs", version = "6.7.3")
@@ -115,7 +120,7 @@ use_repo(npm, "npm")
 rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext")
 rules_ts_ext.deps()
 use_repo(rules_ts_ext, "npm_typescript")
-{{- end}}
+{{- end }}
 {{- if .Computed.python }}
 
 #########################
@@ -139,6 +144,8 @@ pip.parse(
 use_repo(pip, "pip")
 {{- end }}
 {{- if .Computed.cpp }}
+{{ if or .Computed.python .Computed.javascript }}
+{{ end -}}
 bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "toolchains_llvm", version = "1.6.0")
 
@@ -189,7 +196,6 @@ rust.toolchain(
 )
 
 crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
-
 crate.from_cargo(
     name = "crates",
     cargo_lock = "//:Cargo.lock",
@@ -201,7 +207,6 @@ crate.from_cargo(
         "x86_64-unknown-linux-gnu",
     ],
 )
-
 use_repo(crate, "crates")
 {{- end }}
 {{- if .Computed.swift }}
@@ -225,14 +230,17 @@ use_repo(crate, "crates")
 bazel_dep(name = "rules_swift", version = "3.6.1", repo_name = "build_bazel_rules_swift")
 git_override(
     module_name = "rules_swift",
-    remote = "https://github.com/bazelbuild/rules_swift.git",
     # main @ 2026-05-22; first ref carrying the hermetic `swift` toolchain
     # extension (PR #1630). Swap for a stable release once one ships with it.
     commit = "f9f6fc9e308a18bfb2ea4797fea6c52fe134b980",
+    remote = "https://github.com/bazelbuild/rules_swift.git",
 )
 
 swift = use_extension("@build_bazel_rules_swift//swift:extensions.bzl", "swift")
-swift.toolchain(name = "swift_toolchain", swift_version = "6.2.3")
+swift.toolchain(
+    name = "swift_toolchain",
+    swift_version = "6.2.3",
+)
 use_repo(
     swift,
     "swift_toolchain",
@@ -246,6 +254,7 @@ register_toolchains(
     "@swift_toolchain//:swift_toolchain_exec_ubuntu24.04",
     "@swift_toolchain//:swift_toolchain_exec_ubuntu24.04-aarch64",
 )
+
 register_toolchains("@build_bazel_rules_swift//swift/toolchains:all")
 {{- if .Scaffold.lint }}
 
@@ -272,19 +281,22 @@ single_version_override(
     patch_strip = 1,
     patches = ["//tools/patches:rules_lint_rubocop_sarif.patch"],
 )
-{{- end }}
-bazel_dep(name = "rules_ruby") # version = "0.21.1")
+
+{{ end -}}
+bazel_dep(name = "rules_ruby")  # version = "0.21.1")
 git_override(
     module_name = "rules_ruby",
     commit = "13688af7048c0aa95d4821df29b695f6816487d0",
     remote = "https://github.com/bazel-contrib/rules_ruby.git",
 )
+
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(
     name = "ruby",
     version_file = "//:.ruby-version",
 )
 use_repo(ruby, "ruby", "ruby_toolchains")
+
 register_toolchains("@ruby_toolchains//:all")
 
 ruby.bundle_fetch(
@@ -295,6 +307,7 @@ ruby.bundle_fetch(
 use_repo(ruby, "bundle")
 {{- end }}
 {{- if or .Computed.java .Computed.kotlin .Computed.scala }}
+
 #########################
 # Java and other JVM languages
 bazel_dep(name = "rules_java", version = "9.3.0")
@@ -303,6 +316,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.9")
 {{- if .Computed.java }}
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+
 # In the Maven support variation, the dependencies are conveniently listed here
 # in the MODULE.bazel file.
 maven.install(
@@ -314,7 +328,8 @@ use_repo(
     "maven",
     "unpinned_maven",
 )
-{{if .Scaffold.lint -}}
+{{- if .Scaffold.lint }}
+
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
@@ -330,27 +345,37 @@ http_archive(
 {{- end }}
 {{- end }}
 {{- if .Computed.kotlin }}
+{{ if .Computed.java }}
+{{ end -}}
 bazel_dep(name = "rules_kotlin", version = "2.2.2")
+
 # Force a transitive resolution of rules_android to pick up Bazel 9 fixes
 bazel_dep(name = "rules_android", version = "0.7.1", repo_name = None)
-{{if .Scaffold.lint -}}
+{{- if .Scaffold.lint }}
+
 http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
+
 http_jar(
     name = "ktfmt",
     integrity = "sha256-l/x/vRlNAan6RdgUfAVSQDAD1VusSridhNe7TV4/SN4=",
     url = "https://repo1.maven.org/maven2/com/facebook/ktfmt/0.46/ktfmt-0.46-jar-with-dependencies.jar",
 )
+
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
 http_file(
     name = "com_github_pinterest_ktlint",
+    executable = True,
     sha256 = "2e28cf46c27d38076bf63beeba0bdef6a845688d6c5dccd26505ce876094eb92",
     url = "https://github.com/pinterest/ktlint/releases/download/1.2.1/ktlint",
-    executable = True,
 )
 {{- end }}
 {{- end }}
 {{- if .Computed.scala }}
+{{ if or .Computed.java (and .Computed.kotlin .Scaffold.lint) }}
+{{ end -}}
 bazel_dep(name = "rules_scala", version = "7.1.6")
+
 scala_config = use_extension(
     "@rules_scala//scala/extensions:config.bzl",
     "scala_config",
@@ -365,11 +390,9 @@ scala_deps = use_extension(
 )
 scala_deps.scala()
 {{- end }}
-
-{{- if .Scaffold.oci  }}
+{{- if .Scaffold.oci }}
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
-
 {{- if .Computed.go }}
 
 # Base image for GO Containers.
@@ -384,12 +407,12 @@ oci.pull(
 )
 use_repo(oci, "distroless_base", "distroless_base_linux_amd64", "distroless_base_linux_arm64")
 {{- end }}
-
 {{- if .Computed.python }}
+
 oci.pull(
     name = "python_base",
-    image = "ubuntu",
     digest = "sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9e54",
+    image = "ubuntu",
     platforms = [
         "linux/arm64/v8",
         "linux/amd64",
