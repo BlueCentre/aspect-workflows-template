@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.2.0...v2.2.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **template:** make every preset render a fixed point of `bazel run //:tidy` ([#33](https://github.com/VitruvianSoftware/aspect-workflows-template/issues/33)) ([c2a647a](https://github.com/VitruvianSoftware/aspect-workflows-template/commit/c2a647a68f7c92686945f7a1148b71d6a410a6b4))
+
 ## [2.2.0](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.1.0...v2.2.0) (2026-06-12)
 
 
