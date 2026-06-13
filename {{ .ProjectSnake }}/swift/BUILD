@@ -1,3 +1,5 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
 # Platform config_settings consumed by //swift:defs.bzl to inject the hermetic
 # Swift runtime libraries on Linux (see the swift_binary wrapper). macOS gets the
 # runtime from Xcode, so it falls through to the select() default (no data dep).
@@ -17,4 +19,11 @@ config_setting(
         "@platforms//cpu:arm64",
     ],
     visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@build_bazel_rules_swift//swift:swift_binary"],
 )

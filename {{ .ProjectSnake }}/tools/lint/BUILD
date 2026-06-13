@@ -3,28 +3,35 @@
 This is in its own package because it has so many loading-time symbols,
 we don't want to trigger eager fetches of these for builds which aren't running linters.
 """
-
+{{ if or .Computed.cpp .Computed.javascript .Computed.go .Computed.java }}
+{{ end -}}
+{{ if .Computed.cpp -}}
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+{{ end -}}
+{{ if .Computed.javascript -}}
+load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+{{ end -}}
+{{ if .Computed.go -}}
+load("@rules_go//go:def.bzl", "TOOLS_NOGO", "nogo")
+{{ end -}}
+{{ if .Computed.java -}}
+load("@rules_java//java:defs.bzl", "java_binary")
+{{ end }}
 # gazelle:exclude linters.bzl
 package(default_visibility = ["//:__subpackages__"])
-
-{{ if .Computed.javascript }}
-load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+{{- if .Computed.javascript }}
 
 eslint_bin.eslint_binary(name = "eslint")
-{{ end }}
-
-{{ if .Computed.java }}
-load("@rules_java//java:defs.bzl", "java_binary")
+{{- end }}
+{{- if .Computed.java }}
 
 java_binary(
     name = "pmd",
     main_class = "net.sourceforge.pmd.cli.PmdCli",
     runtime_deps = ["@net_sourceforge_pmd"],
 )
-{{ end }}
-
-{{ if .Computed.cpp}}
-load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+{{- end }}
+{{- if .Computed.cpp }}
 
 native_binary(
     name = "clang_tidy",
@@ -42,14 +49,12 @@ native_binary(
     ),
     out = "clang_tidy",
 )
-{{ end }}
-
-{{ if .Computed.go }}
-load("@rules_go//go:def.bzl", "nogo", "TOOLS_NOGO")
+{{- end }}
+{{- if .Computed.go }}
 
 nogo(
     name = "nogo",
-    deps = TOOLS_NOGO,
     visibility = ["//visibility:public"],
+    deps = TOOLS_NOGO,
 )
-{{ end }}
+{{- end }}

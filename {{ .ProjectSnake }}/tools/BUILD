@@ -10,12 +10,25 @@ used under Bazel as a `bin/` tree which can be added to the `$PATH`. The
 included `.envrc` automates this for you.
 
 """
-load("@bazelrc-preset.bzl", "bazelrc_preset")
+
 load("@bazel_env.bzl", "bazel_env")
-load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
-{{ if .Computed.go }}
+load("@bazelrc-preset.bzl", "bazelrc_preset")
+{{- if .Computed.go }}
 load("@gazelle//:go_tools.bzl", "GO_TOOLS")
-{{ end }}
+{{- end }}
+load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
+{{- if .Computed.javascript }}
+load("@npm//:defs.bzl", "npm_link_all_packages")
+{{- end }}
+{{- if and .Computed.javascript .Scaffold.codegen }}
+load("@npm//tools:yo/package_json.bzl", yo_bin = "bin")
+{{- end }}
+{{- if and .Scaffold.codegen .Computed.python }}
+load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
+{{- end }}
+{{- if and .Scaffold.proto .Computed.ruby }}
+load("@rules_ruby//ruby:defs.bzl", "rb_binary")
+{{- end }}
 
 package(default_visibility = ["//visibility:public"])
 
@@ -23,88 +36,81 @@ bazelrc_preset(
     name = "preset",
     doc_link_template = "https://registry.build/flag/bazel?filter={flag}",
 )
-
-{{ if and .Scaffold.codegen .Computed.python }}
-load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
+{{- if and .Scaffold.codegen .Computed.python }}
 
 py_console_script_binary(
     name = "copier",
     pkg = "@pip//copier",
 )
-{{ end }}
-
-{{ if .Computed.javascript }}
-load("@npm//:defs.bzl", "npm_link_all_packages")
+{{- end }}
+{{- if .Computed.javascript }}
 
 npm_link_all_packages(name = "node_modules")
+{{- end }}
+{{- if and .Computed.javascript .Scaffold.codegen }}
 
-{{ if .Scaffold.codegen }}
-load("@npm//tools:yo/package_json.bzl", yo_bin = "bin")
 yo_bin.yo_binary(name = "yo")
-{{ end }}
-{{ end }}
+{{- end }}
 
 bazel_env(
     name = "bazel_env",
     toolchains = {
-{{ if .Computed.java }}
+{{- if .Computed.java }}
         "jdk": "@rules_java//toolchains:current_host_java_runtime",
-{{ end }}
-{{ if .Computed.python }}
+{{- end }}
+{{- if .Computed.python }}
         "python": "@rules_python//python:current_py_toolchain",
         "uv": "@multitool//tools/uv:uv",
-{{ end }}
-{{ if .Computed.javascript }}
+{{- end }}
+{{- if .Computed.javascript }}
         "nodejs": "@nodejs_toolchains//:resolved_toolchain",
         "prettier": "//tools/format:prettier",
-{{ end }}
+{{- end }}
     },
     tools = {
         # Mapping from tool binary name ($PATH entry) to Bazel label
-{{ if .Scaffold.lint }}
+{{- if .Scaffold.lint }}
         "buildifier": "@buildifier_prebuilt//:buildifier",
         "format": "//tools/format:format",
-{{ end }}
-{{ if .Computed.rust }}
+{{- end }}
+{{- if .Computed.rust }}
         "cargo": "@rules_rust//tools/upstream_wrapper:cargo",
-{{ end }}
-{{ if and .Scaffold.codegen .Computed.python }}
+{{- end }}
+{{- if and .Scaffold.codegen .Computed.python }}
         "copier": ":copier",
-{{ end }}
-{{ if .Computed.go }}
+{{- end }}
+{{- if .Computed.go }}
         "go": "@rules_go//go",
-{{ end }}
-{{ if .Computed.java }}
+{{- end }}
+{{- if .Computed.java }}
         "jar": "$(JAVABASE)/bin/jar",
         "java": "$(JAVA)",
-{{ end }}
-{{ if .Computed.javascript }}
+{{- end }}
+{{- if .Computed.javascript }}
         "node": "$(NODE_PATH)",
         "npm": "$(NPM_PATH)",
         "pnpm": "@pnpm",
-{{ if .Scaffold.codegen }}
+{{- if .Scaffold.codegen }}
         "yo": ":yo",
-{{ end }}
-{{ end }}
-{{ if .Computed.python }}
+{{- end }}
+{{- end }}
+{{- if .Computed.python }}
         "python": "$(PYTHON3)",
-{{ end }}
-{{ if .Computed.ruby }}
+{{- end }}
+{{- if .Computed.ruby }}
         "bundle": "@ruby//:bundle",
         "gem": "@ruby//:gem",
         "ruby": "@ruby",
-{{ end }}
-    } | MULTITOOL_TOOLS {{ if .Computed.go }} | GO_TOOLS {{ end }}{{- if .Scaffold.license }} | {
+{{- end }}
+    } | MULTITOOL_TOOLS{{ if .Computed.go }} | GO_TOOLS{{ end }}{{ if .Scaffold.license }} | {
         "addlicense": "@multitool//tools/addlicense",
     }{{ end }},
 )
-
-{{ if and .Scaffold.proto .Computed.ruby }}
-load("@rules_ruby//ruby:defs.bzl", "rb_binary")
+{{- if and .Scaffold.proto .Computed.ruby }}
 
 rb_binary(
     name = "grpc_tools_ruby_protoc_plugin",
     main = "@bundle//bin:grpc_tools_ruby_protoc_plugin",
     deps = ["@bundle"],
 )
-{{ end }}
+{{- end }}
