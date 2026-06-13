@@ -104,9 +104,16 @@ jobs:
             # the post-scaffold hooks, so its raw render is what ships).
             # MODULE.bazel.lock is ignored for the same reason as in tidy-check:
             # Bazel may (re)generate it while resolving the module graph.
+            # ORION_EXTENSIONS_DIR (exported into the job env by the direnv step
+            # above) is unset to match the starter's Tidy Check environment:
+            # tidy-check.yaml has no direnv, so the .axl gazelle extensions are
+            # not loaded there, and with the variable set gazelle would generate
+            # extra targets (e.g. shell.axl creates tools/scripts/BUILD) that
+            # the delivered tree does not ship.
             - name: Tidy made no changes
               working-directory: "${{ steps.scaffold.outputs.dir }}"
               run: |
+                  unset ORION_EXTENSIONS_DIR
                   bazel run //:tidy
                   changed="$(git status --porcelain -- ':!MODULE.bazel.lock')"
                   if [ -n "$changed" ]; then
