@@ -40,6 +40,8 @@
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -251,5 +253,141 @@ func TestImport_BackoffValues(t *testing.T) {
 	want := []int{10, 15}
 	if fmt.Sprint(sleepCalls) != fmt.Sprint(want) {
 		t.Errorf("sleep calls = %v, want %v", sleepCalls, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// one-way import_pr
+// ---------------------------------------------------------------------------
+
+// setupWorkspace creates a temp workspace containing tools/copybara/copy.bara.sky
+// with an @@PR_NUMBER@@ placeholder and points resolveWorkspace at it.
+func setupWorkspace(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	cfgDir := filepath.Join(dir, "tools", "copybara")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "x = \"import-pr-@@PR_NUMBER@@\"\n"
+	if err := os.WriteFile(filepath.Join(cfgDir, "copy.bara.sky"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BUILD_WORKSPACE_DIRECTORY", "")
+	t.Setenv("GITHUB_WORKSPACE", dir)
+	return dir
+}
+
+func argsContain(args []string, want string) bool {
+	for _, a := range args {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestWorkflowName_ImportPR(t *testing.T) {
+	got := workflowName("import_pr", "nexus-agent")
+	if got != "import_pr_nexus_agent" {
+		t.Errorf("workflowName = %q, want %q", got, "import_pr_nexus_agent")
+	}
+}
+
+func TestImportPR_MissingPRNumber_Exit2(t *testing.T) {
+	fr := &fakeRunner{codes: []int{0}}
+	code := run([]string{"import_pr", "devx"}, fr, noopSleeper)
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if fr.callCount != 0 {
+		t.Errorf("runner called %d times, should be 0", fr.callCount)
+	}
+}
+
+func TestImportPR_NonDigitPRNumber_Exit2(t *testing.T) {
+	fr := &fakeRunner{codes: []int{0}}
+	code := run([]string{"import_pr", "devx", "12x"}, fr, noopSleeper)
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if fr.callCount != 0 {
+		t.Errorf("runner called for non-digit pr number")
+	}
+}
+
+func TestImportPR_Success_DockerArgs(t *testing.T) {
+	setupWorkspace(t)
+	fr := &fakeRunner{codes: []int{0}}
+	code := run([]string{"import_pr", "mcp-slack", "123"}, fr, noopSleeper)
+	if code != 0 {
+		t.Errorf("exit = %d, want 0", code)
+	}
+	if fr.callCount != 1 {
+		t.Fatalf("runner called %d times, want 1", fr.callCount)
+	}
+	args := fr.capturedArgs[0]
+	if !argsContain(args, "COPYBARA_WORKFLOW=import_pr_mcp_slack") {
+		t.Errorf("missing import_pr workflow name: %v", args)
+	}
+	if !argsContain(args, "COPYBARA_SOURCEREF=123") {
+		t.Errorf("missing COPYBARA_SOURCEREF: %v", args)
+	}
+	if !argsContain(args, "GITHUB_TOKEN") {
+		t.Errorf("missing GITHUB_TOKEN pass-through: %v", args)
+	}
+	// import_pr is HTTPS App-token auth: no SSH key should be mounted.
+	for _, a := range args {
+		if strings.Contains(a, "id_rsa") {
+			t.Errorf("import_pr must not mount an SSH key, got %q", a)
+		}
+	}
+}
+
+func TestImportPR_Failure_NoRetry(t *testing.T) {
+	setupWorkspace(t)
+	fr := &fakeRunner{codes: []int{1}}
+	code := run([]string{"import_pr", "devx", "5"}, fr, noopSleeper)
+	if code != 1 {
+		t.Errorf("exit = %d, want 1", code)
+	}
+	if fr.callCount != 1 {
+		t.Errorf("runner called %d times, want 1 (import_pr does not retry)", fr.callCount)
+	}
+}
+
+func TestImportPR_Exit4_IsSuccess(t *testing.T) {
+	setupWorkspace(t)
+	fr := &fakeRunner{codes: []int{4}}
+	code := run([]string{"import_pr", "devx", "5"}, fr, noopSleeper)
+	if code != 0 {
+		t.Errorf("exit = %d, want 0 (exit 4 = no-op)", code)
+	}
+}
+
+func TestResolveImportPRConfig_RewritesPlaceholder(t *testing.T) {
+	dir := t.TempDir()
+	cfgDir := filepath.Join(dir, "tools", "copybara")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "copy.bara.sky"),
+		[]byte("x = \"import-pr-@@PR_NUMBER@@\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path, err := resolveImportPRConfig(dir, "77")
+	if err != nil {
+		t.Fatalf("resolveImportPRConfig: %v", err)
+	}
+	defer os.Remove(path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "@@PR_NUMBER@@") {
+		t.Errorf("placeholder not replaced: %s", data)
+	}
+	if !strings.Contains(string(data), "import-pr-77") {
+		t.Errorf("resolved config missing the PR number: %s", data)
 	}
 }

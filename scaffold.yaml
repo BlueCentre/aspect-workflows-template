@@ -91,12 +91,17 @@ questions:
       message: Copyright holder (e.g. "Acme, Inc.")
   - name: copybara
     prompt:
-      confirm: Add Copybara monorepo<->standalone bidirectional sync?
+      confirm: Add Copybara monorepo<->standalone sync (bidirectional or one-way PR-import)?
       description: "Bazel-run sync engine (export/import/drift/conflict-precheck) for publishing subtrees to standalone repos"
   - name: copybara_components
     when: "{{ .Scaffold.copybara }}"
     prompt:
       message: "Initial sync component subdirs, comma-separated (blank = none, add later via the runbook)"
+  - name: copybara_one_way
+    when: "{{ .Scaffold.copybara }}"
+    prompt:
+      confirm: "Use ONE-WAY PR-import (monorepo is the source of truth; standalones are export-only mirrors) instead of bidirectional?"
+      description: "One-way removes the #1 drift risk of two writable-authoritative copies; external contributions come back as labelled mirror PRs imported into the monorepo for review. Needs the GitHub-App auth (answer yes to the next question)."
   - name: copybara_pulumi_auth
     when: "{{ .Scaffold.copybara }}"
     prompt:
@@ -197,13 +202,29 @@ features:
       - "*/LICENSE"
       - "*/tools/license/*"
       - "*/.github/workflows/license-check.yml"
+  # Copybara files SHARED by both sync shapes (config + export + the Go wrappers
+  # the export and one-way-import both drive).
   - value: "{{ .Scaffold.copybara }}"
     globs:
-      - "*/tools/copybara/**"
+      - "*/tools/copybara/copy.bara.sky"
+      - "*/tools/copybara/sync/**"
+      - "*/tools/copybara/conflict_precheck/**"
       - "**/_copybara-export.yaml"
+  # BIDIRECTIONAL-only (both repos writable: push-import + drift detection).
+  - value: "{{ and .Scaffold.copybara (not .Scaffold.copybara_one_way) }}"
+    globs:
       - "**/_copybara-import.yaml"
       - "**/copybara-drift-check.yaml"
+      - "*/tools/copybara/drift_check/**"
+      - "*/tools/copybara/sync-to-monorepo.yaml"
       - "*/docs/copybara-bidi-sync.md"
+  # ONE-WAY PR-import only (monorepo source of truth; labelled mirror PRs imported).
+  - value: "{{ and .Scaffold.copybara .Scaffold.copybara_one_way }}"
+    globs:
+      - "**/copybara-import-pr.yaml"
+      - "**/copybara-import-pr-close.yaml"
+      - "*/tools/copybara/cla/**"
+      - "*/docs/copybara-oneway-sync.md"
   - value: "{{ and .Scaffold.copybara .Scaffold.copybara_pulumi_auth }}"
     globs:
       - "*/infrastructure/**/copybara_sync/**"
@@ -396,4 +417,12 @@ presets:
     lint: true
     copybara: true
     copybara_components: ""
+    copybara_one_way: false
     copybara_pulumi_auth: false
+  copybara-oneway:
+    langs: ['Go']
+    lint: true
+    copybara: true
+    copybara_components: "my-lib,my-svc"
+    copybara_one_way: true
+    copybara_pulumi_auth: true
