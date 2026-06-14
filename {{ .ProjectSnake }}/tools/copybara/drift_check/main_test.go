@@ -48,7 +48,7 @@ import (
 func makeSymlink(t *testing.T, dir, rel, target string) {
 	t.Helper()
 	full := filepath.Join(dir, rel)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(target, full); err != nil {
@@ -63,10 +63,10 @@ func makeSymlink(t *testing.T, dir, rel, target string) {
 func writeFile(t *testing.T, dir, rel, content string) {
 	t.Helper()
 	full := filepath.Join(dir, rel)
-	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(full, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -334,7 +334,7 @@ func TestCompareDirs_FileVsSymlinkTypeMismatch(t *testing.T) {
 func TestCompareDirs_EmptyDirOnlyInA(t *testing.T) {
 	a := t.TempDir()
 	b := t.TempDir()
-	if err := os.Mkdir(filepath.Join(a, "emptydir"), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(a, "emptydir"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
