@@ -210,12 +210,12 @@ func envKey(component string) string {
 // writeSSHKey writes the key to ~/.ssh/id_rsa (0600) stripping one trailing newline.
 func writeSSHKey(key string) error {
 	sshDir := filepath.Join(os.Getenv("HOME"), ".ssh")
-	if err := os.MkdirAll(sshDir, 0700); err != nil {
+	if err := os.MkdirAll(sshDir, 0o700); err != nil {
 		return err
 	}
 	// Strip a single trailing newline (match bash ${key%$'\n'}).
 	key = strings.TrimSuffix(key, "\n")
-	return os.WriteFile(filepath.Join(sshDir, "id_rsa"), []byte(key), 0600)
+	return os.WriteFile(filepath.Join(sshDir, "id_rsa"), []byte(key), 0o600)
 }
 
 // knownHostsPath returns the path to the known_hosts file.
@@ -226,7 +226,7 @@ func knownHostsPath() string {
 // scanGitHub runs ssh-keyscan to populate known_hosts with github.com keys.
 func scanGitHub() error {
 	khPath := knownHostsPath()
-	f, err := os.OpenFile(khPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(khPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func scanGitHub() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(khPath, out, 0600)
+	return os.WriteFile(khPath, out, 0o600)
 }
 
 // gitClone clones org/component into destDir using the written SSH key.

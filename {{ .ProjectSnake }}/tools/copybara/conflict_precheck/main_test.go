@@ -69,7 +69,7 @@ func initRepo(t *testing.T) string {
 	gitCmd(t, dir, "config", "user.email", "test@example.com")
 	gitCmd(t, dir, "config", "user.name", "Test")
 	// Write an initial file and commit so HEAD exists.
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("init\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("init\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	gitCmd(t, dir, "add", ".")
@@ -80,10 +80,10 @@ func initRepo(t *testing.T) string {
 // addCommit writes a file with given content and commits with the message.
 func addCommit(t *testing.T, dir, filename, content, msg string) string {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filename)), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filename)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, filename), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, filename), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	gitCmd(t, dir, "add", filename)
