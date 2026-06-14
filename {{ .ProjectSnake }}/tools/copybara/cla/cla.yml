@@ -1,0 +1,86 @@
+{{ if .Scaffold.license }}{{ if eq .Scaffold.license_id `Apache-2.0` }}# Copyright {{ now.Year }} {{ .Scaffold.copyright_holder }}
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+{{ else if eq .Scaffold.license_id `MIT` }}# Copyright (c) {{ now.Year }} {{ .Scaffold.copyright_holder }}
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+{{ else if eq .Scaffold.license_id `BSD-3-Clause` }}# Copyright (c) {{ now.Year }} {{ .Scaffold.copyright_holder }} All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+{{ else }}# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+{{ end }}{{ end }}name: CLA Assistant
+
+# EXAMPLE / TEMPLATE -- not active where it sits. For each one-way mirror, copy
+# this file into  <component>/.github/workflows/cla.yml  in the MONOREPO (so the
+# export carries it to the mirror's .github/workflows/cla.yml), copy
+# tools/copybara/cla/CLA.md to <component>/CLA.md, and replace <org>/<component>
+# below. See docs/copybara-oneway-sync.md.
+#
+# AUTHORING / EXPORT MODEL: authored in the monorepo under <component>/ so
+# export_<component> carries it down to the mirror root. It is NOT in
+# copy.bara.sky's `standalone_only` set, so it IS synced and runs IN THE MIRROR.
+#
+# GATE ORDERING: a contributor signs the CLA (this check goes green) BEFORE a
+# maintainer applies the 'import-to-monorepo' label; the monorepo poll only
+# imports labelled PRs, so CLA-signing precedes import.
+#
+# CREDENTIALS: uses ONLY the mirror's built-in secrets.GITHUB_TOKEN. No monorepo
+# secret is referenced or reachable here.
+
+on:
+    pull_request_target:
+        types: [opened, closed, synchronize]
+    issue_comment:
+        types: [created]
+
+permissions:
+    contents: write
+    pull-requests: write
+    statuses: write
+    actions: write
+
+jobs:
+    cla:
+        runs-on: ubuntu-latest
+        steps:
+            - name: CLA Assistant Lite
+              if: (github.event.issue.pull_request && contains(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
+              uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+              env:
+                  # Mirror's built-in token ONLY.
+                  GITHUB_TOKEN: ${{ "{{ secrets.GITHUB_TOKEN }}" }}
+              with:
+                  custom-pr-sign-comment: "I have read the CLA Document and I hereby sign the CLA"
+                  path-to-signatures: "signatures/version1/cla.json"
+                  branch: "cla-signatures"
+                  # EDIT <org>/<component>: must be PUBLICLY readable on the mirror's main.
+                  path-to-document: "https://github.com/<org>/<component>/blob/main/CLA.md"
+                  allowlist: "dependabot[bot],renovate[bot],*[bot]"
