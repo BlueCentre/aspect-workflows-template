@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.3.0](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.2.1...v2.3.0) (2026-06-14)
+
+
+### Features
+
+* **copybara:** add one-way PR-import sync shape (offer both modes) ([#35](https://github.com/VitruvianSoftware/aspect-workflows-template/issues/35)) ([6f7c624](https://github.com/VitruvianSoftware/aspect-workflows-template/commit/6f7c624890391b71d97850db722677fa20ca262e))
+
+
+### Bug Fixes
+
+* **copybara:** use 0o-prefixed octal literals in the Go tool tests ([#37](https://github.com/VitruvianSoftware/aspect-workflows-template/issues/37)) ([aea00de](https://github.com/VitruvianSoftware/aspect-workflows-template/commit/aea00de158cc321b87cb6954351268fe35e913dc))
+
 ## [2.2.1](https://github.com/VitruvianSoftware/aspect-workflows-template/compare/v2.2.0...v2.2.1) (2026-06-13)
 
 
