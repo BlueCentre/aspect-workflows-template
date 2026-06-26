@@ -498,12 +498,17 @@
     "hello/rust/*.rs",
     "hello/shell/*.sh",
     "tools/license/defs.bzl",
-    ".github/workflows/license-check.yml"
+    ".github/workflows/license-check.yml",
+    "tools/remote/setup.sh",
+    "user.bazelrc.example",
+    "docs/build-cache.md",
+    "docs/remote-build.md"
   ],
   "executable": [
     "bazel/workspace_status.sh",
     "hello/shell/hello.sh",
     "hello/shell/hello_test.sh",
+    "tools/remote/setup.sh",
     "tools/repin",
     "tools/scripts/copilot",
     "tools/scripts/gemini"

@@ -37,6 +37,11 @@ common --@protobuf//bazel/toolchains:prefer_prebuilt_protoc
 common:release --stamp --workspace_status_command=./bazel/workspace_status.sh
 {% endif %}
 
+# Build-cache / remote-execution config written by `./tools/remote/setup.sh`
+# (committed, non-secret). Dormant until you run the helper; activate a remote
+# cache/RBE per-build with `--config=remote`. See docs/build-cache.md.
+try-import %workspace%/tools/remote.bazelrc
+
 # Load settings & overrides specific to the current user from `user.bazelrc`.
 # That file is git-ignored so settings aren't shared with team members. This is
 # the last statement in this config so user settings can override flags set
