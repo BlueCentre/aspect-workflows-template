@@ -1023,6 +1023,66 @@
         "skeleton/**",
         ".bazelignore"
       ]
+    },
+    {
+      "flag": "go",
+      "globs": [
+        "docs/dependency-versioning/go.md"
+      ]
+    },
+    {
+      "flag": "python",
+      "globs": [
+        "docs/dependency-versioning/python.md"
+      ]
+    },
+    {
+      "flag": "javascript",
+      "globs": [
+        "docs/dependency-versioning/javascript.md"
+      ]
+    },
+    {
+      "flag": "java",
+      "globs": [
+        "docs/dependency-versioning/java.md"
+      ]
+    },
+    {
+      "flag": "kotlin",
+      "globs": [
+        "docs/dependency-versioning/kotlin.md"
+      ]
+    },
+    {
+      "flag": "scala",
+      "globs": [
+        "docs/dependency-versioning/scala.md"
+      ]
+    },
+    {
+      "flag": "cpp",
+      "globs": [
+        "docs/dependency-versioning/cpp.md"
+      ]
+    },
+    {
+      "flag": "rust",
+      "globs": [
+        "docs/dependency-versioning/rust.md"
+      ]
+    },
+    {
+      "flag": "ruby",
+      "globs": [
+        "docs/dependency-versioning/ruby.md"
+      ]
+    },
+    {
+      "flag": "swift",
+      "globs": [
+        "docs/dependency-versioning/swift.md"
+      ]
     }
   ],
   "no_render": [

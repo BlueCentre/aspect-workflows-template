@@ -17,6 +17,15 @@ permissions:
 concurrency:
   group: ${{ '{{' }} github.workflow {{ '}}' }}-${{ '{{' }} github.head_ref || github.run_id {{ '}}' }}
   cancel-in-progress: true
+{% if swift %}
+
+# rules_swift's Linux toolchain links via the configured CC toolchain, which
+# must be clang (the GitHub ubuntu runners default to gcc). cpp presets already
+# register a clang LLVM toolchain; a swift-only repo needs this explicit override.
+env:
+  CC: clang
+  CXX: clang++
+{% endif %}
 
 jobs:
   test:

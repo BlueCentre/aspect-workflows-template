@@ -59,6 +59,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # rules_swift's Linux toolchain links via the configured CC toolchain,
+      # which must be clang; ubuntu defaults to gcc. The swift-only preset has no
+      # cpp/LLVM toolchain to provide clang, so export CC=clang before the first
+      # bazel call. (kitchen-sink's cpp already registers a clang LLVM toolchain.)
+      - name: Use clang for Swift (Linux)
+        if: ${{ matrix.preset == 'swift' && matrix.os == 'ubuntu-latest' }}
+        run: |
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
       - name: Install Aspect CLI
         uses: aspect-build/setup-aspect@36c688a9bbb0c84d55d7eca31bf3215e9d265bff # v2026.24.1
         with:

@@ -1,0 +1,8 @@
+site_name: '{{ project_snake }}'
+
+# nav:
+#   - Home: docs/index.md
+#   - Root: README.bazel.md
+
+plugins:
+  - techdocs-core
