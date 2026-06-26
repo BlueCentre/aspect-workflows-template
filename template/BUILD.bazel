@@ -66,6 +66,11 @@ exports_files([
 # The gazelle binary + `gazelle` runner target live in //tools/gazelle (the
 # default target for `aspect gazelle`). Run `aspect gazelle` to generate BUILDs.
 
+# Hand-authored Pulumi macro + a standalone Pulumi Go module (its own go.mod):
+# gazelle must not generate or rewrite BUILD files in either.
+# gazelle:exclude infrastructure
+# gazelle:exclude tools/pulumi
+
 {% if python %}
 # uv reads pyproject.toml; tools/pytest also attaches it as test data.
 exports_files(

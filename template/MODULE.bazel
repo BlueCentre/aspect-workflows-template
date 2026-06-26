@@ -25,9 +25,9 @@ bazel_dep(name = "aspect_rules_lint", version = "2.7.1")
 # bazel_skylib's native_binary backs //tools/lint's linter wrappers.
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 {% endif %}
-{% if shell %}
+# rules_shell is unconditional: the always-shipped //tools/pulumi macro emits
+# sh_binary wrappers (pulumi run targets) even when "shell" isn't a selected language.
 bazel_dep(name = "rules_shell", version = "0.8.0")
-{% endif %}
 {% if oci %}
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "tar.bzl", version = "0.10.5")

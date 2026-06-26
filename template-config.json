@@ -720,12 +720,20 @@
     "tools/copybara/conflict_precheck/main_test.go",
     "docs/copybara-bidi-sync.md",
     "docs/copybara-oneway-sync.md",
-    "infrastructure/pulumi/copybara_sync/BUILD"
+    "infrastructure/pulumi/copybara_sync/BUILD",
+    ".github/workflows/_repo-config-preview.yaml",
+    ".github/workflows/_repo-config-apply.yaml",
+    "tools/pulumi/pulumi_cmd.sh",
+    "tools/pulumi/pulumi_setup.sh",
+    "tools/pulumi/create_app.sh"
   ],
   "executable": [
     "bazel/workspace_status.sh",
     "hello/shell/hello.sh",
     "hello/shell/hello_test.sh",
+    "tools/pulumi/create_app.sh",
+    "tools/pulumi/pulumi_cmd.sh",
+    "tools/pulumi/pulumi_setup.sh",
     "tools/remote/setup.sh",
     "tools/repin",
     "tools/scripts/copilot",
