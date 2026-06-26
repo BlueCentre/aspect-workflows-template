@@ -1,0 +1,65 @@
+# Backstage catalog-info.yaml for generated project
+# This file will be in the generated repository
+# See https://backstage.io/docs/features/software-catalog/descriptor-format
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ '{{' }} values.name {{ '}}' }}
+  description: ${{ '{{' }} values.description {{ '}}' }}
+  annotations:
+    github.com/project-slug: ${{ '{{' }} values.destination.owner {{ '}}' }}/${{ '{{' }} values.name {{ '}}' }}
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/source-template: ${{ '{{' }} values.destination.owner {{ '}}' }}/aspect-workflows-template
+  tags:
+    - bazel
+    - aspect-workflows
+{%- set ns = namespace(count = 0) -%}
+{%- if javascript %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if python %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if go %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if java %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if kotlin %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if cpp %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if rust %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if shell %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if ns.count >= 8 %}
+    - multi-language
+{%- endif %}
+{%- if javascript %}
+    - javascript
+    - typescript
+{%- endif %}
+{%- if python %}
+    - python
+{%- endif %}
+{%- if go %}
+    - go
+{%- endif %}
+{%- if java %}
+    - java
+{%- endif %}
+{%- if kotlin %}
+    - kotlin
+{%- endif %}
+{%- if cpp %}
+    - cpp
+{%- endif %}
+{%- if rust %}
+    - rust
+{%- endif %}
+{%- if shell %}
+    - shell
+{%- endif %}
+  links:
+    - url: https://github.com/${{ '{{' }} values.destination.owner {{ '}}' }}/${{ '{{' }} values.name {{ '}}' }}
+      title: Repository
+      icon: github
+    - url: https://docs.aspect.build/
+      title: Aspect Documentation
+      icon: docs
+
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{ '{{' }} values.owner {{ '}}' }}
+  system: ${{ '{{' }} values.name {{ '}}' }}

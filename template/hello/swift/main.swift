@@ -1,0 +1,3 @@
+import Greeting
+
+print(greeting())

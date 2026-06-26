@@ -9,14 +9,16 @@ This repo includes:
 - 🧱 Latest version of Bazel and dependencies
 - 📦 Curated bazelrc flags via [bazelrc-preset.bzl]
 - 🧰 Developer environment setup with [bazel_env.bzl]
-- 🎨 `swift-format` (SwiftFormat) using rules_lint
-- ✅ Pre-commit hooks for automatic linting and formatting
+- 🎨 `swift-format` formatting, using rules_lint
 - 📚 Generic cross-platform Swift via rules_swift
 
+[bazelrc-preset.bzl]: https://github.com/bazel-contrib/bazelrc-preset.bzl
+[bazel_env.bzl]: https://github.com/buildbuddy-io/bazel_env.bzl
+
 > [!NOTE]
-> You can customize languages and features with the interactive wizard in the <code>aspect init</code> command.
-> <code>init</code> is an alternative to this starter repo, which was generated using the 'swift' preset.
-> See https://docs.aspect.build/cli/overview
+> This project was generated from the `swift` preset. You can create your own with
+> `aspect init --preset swift`, or start from this repo with GitHub's
+> "Use this template" button. See https://aspect.build/docs/cli/overview
 
 ## Setup dev environment
 
@@ -28,79 +30,52 @@ First, we recommend you setup a Bazel-based developer environment with direnv.
 This isn't strictly required, but the commands which follow assume that needed tools are on the PATH,
 so skipping `direnv` means you're responsible for installing them yourself.
 
-## Try it out
+## Build and run the sample
 
-First we create a tiny Swift program:
-
-~~~sh
-mkdir -p hello_world
-cat >hello_world/main.swift <<EOF
-print("Hello from Swift")
-EOF
-~~~
-
-We don't have any BUILD file generation for Swift yet,
-so you're forced to create it manually. We load `swift_binary` from
-`//swift:defs.bzl` -- a thin project-local wrapper around rules_swift's
-`swift_binary` that bundles the hermetic Swift runtime into the binary's runfiles
-on Linux, so `bazel run`/`bazel test` can find libswiftCore at runtime.
-~~~sh
-touch hello_world/BUILD
-buildozer 'new_load //swift:defs.bzl swift_binary' hello_world:__pkg__
-buildozer 'new swift_binary hello_world' hello_world:__pkg__
-buildozer 'add srcs main.swift' hello_world:hello_world
-~~~
-
-Now you can run the program and assert that it produces the expected output.
+The starter ships a tiny `hello/swift` package. Build it and run it. The
+`//hello/swift:hello` target uses the `//swift:defs.bzl` wrapper around
+rules_swift's `swift_binary` so the hermetic Swift runtime is staged on Linux,
+letting `bazel run` find `libswiftCore` at runtime:
 
 ~~~sh
-output="$(bazel run hello_world | tail -1)"
-
-[ "${output}" = "Hello from Swift" ] || {
-    echo >&2 "Wanted output 'Hello from Swift' but got '${output}'"
+aspect build --task:name build-swift-story --github-status-comments:enabled=false --github-status-checks:enabled=false //hello/swift:hello
+output=$(bazel run //hello/swift:hello)
+echo "${output}" | grep -q "Hello, world!" || {
+    echo >&2 "Wanted output containing 'Hello, world!' but got '${output}'"
     exit 1
 }
 ~~~
 
-## Formatting
+## Add your own code
 
-We can format the code with SwiftFormat. Let's create some intentionally poorly formatted code
-(the indentation is wrong and the brace is missing a leading space).
+Swift has no BUILD file generator in this starter, so create a new package with a
+hand-written `BUILD` following the same pattern as the sample. Load `swift_binary`
+from `//swift:defs.bzl` (the runtime-staging wrapper), not directly from
+rules_swift:
 
 ~~~sh
-cat >hello_world/main.swift <<EOF
-func main(){
-print("Hello from Swift")
-}
-main()
+mkdir -p cmd/greet
+>cmd/greet/main.swift cat <<'EOF'
+print("Greetings from Bazel")
+EOF
+>cmd/greet/BUILD cat <<'EOF'
+load("//swift:defs.bzl", "swift_binary")
+
+swift_binary(
+    name = "greet",
+    srcs = ["main.swift"],
+    visibility = ["//visibility:public"],
+)
 EOF
 ~~~
 
-Now format it:
+Build and run the new command:
 
 ~~~sh
-format
-~~~
-
-Let's verify the code was fixed:
-
-~~~sh
-cat hello_world/main.swift
-# -> func main() {
-# ->     print("Hello from Swift")
-# -> }
-# -> main()
-~~~
-
-<!--
-~~~sh
-formatted=$(cat hello_world/main.swift)
-echo "${formatted}" | grep -q "^func main() {$" && \
-echo "${formatted}" | grep -q "^    print(\"Hello from Swift\")$" && \
-echo "${formatted}" | grep -q "^}$" || {
-    echo >&2 "Code was not properly formatted. Got:"
-    echo >&2 "${formatted}"
+aspect build --task:name build-swift-greet --github-status-comments:enabled=false --github-status-checks:enabled=false //cmd/greet:greet
+output=$(bazel run //cmd/greet:greet)
+echo "${output}" | grep -q "Greetings from Bazel" || {
+    echo >&2 "Wanted output containing 'Greetings from Bazel' but got '${output}'"
     exit 1
 }
 ~~~
--->

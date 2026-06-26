@@ -1,0 +1,3 @@
+name: {{ project_kebab }}-repo-config
+runtime: go
+description: Pulumi IaC that manages this repository's own GitHub settings (auto-delete merged head branches + parameterized branch protection on the default branch).

@@ -1,0 +1,85 @@
+name: Copybara Import PR auto-close mirror
+
+# When a one-way import PR (branch <component>-import-pr-<N>) MERGES into monorepo
+# main, explicitly close the originating <org>/<component>#<N> mirror PR. Cross-repo
+# closure cannot be done by a commit trailer, so we do it by API. The mirror repo +
+# PR number are read from the monorepo PR body footer
+# 'Mirror-Of: <org>/<repo>#<N>' that import_pr_<component> embedded (falling back to
+# the branch name for older PRs).
+#
+# Trigger is `pull_request` (NOT pull_request_target) on the monorepo's own PRs;
+# it runs in the trusted base context after merge and reads only PR metadata.
+#
+# CREDENTIAL: a short-lived copybara-sync App token, scoped to ONLY the mirror repo
+# with Pull-requests:write -- just enough to comment + close.
+on:
+    pull_request:
+        types: [closed]
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    close-mirror:
+        # Only for merged import PRs. The head.repo guard ensures the branch lives
+        # in this monorepo (where only Copybara/maintainers can push) -- a fork PR
+        # with a crafted '*-import-pr-*' branch name is excluded, so an attacker
+        # cannot spoof this job into acting on a forged Mirror-Of footer.
+        if: >-
+            github.event.pull_request.merged == true &&
+            github.event.pull_request.head.repo.full_name == github.repository &&
+            contains(github.event.pull_request.head.ref, '-import-pr-')
+        runs-on: ubuntu-latest
+        steps:
+            - name: Extract mirror repo + PR number
+              id: mirror
+              env:
+                  BODY: ${{ '{{' }} github.event.pull_request.body {{ '}}' }}
+                  HEAD_REF: ${{ '{{' }} github.event.pull_request.head.ref {{ '}}' }}
+                  ORG: ${{ '{{' }} github.repository_owner {{ '}}' }}
+              run: |
+                  set -euo pipefail
+                  # Prefer the body footer 'Mirror-Of: <org>/<repo>#<N>'; fall back to
+                  # the branch '<repo>-import-pr-<N>' (handles hyphenated repo names
+                  # via the fixed '-import-pr-' delimiter).
+                  mo="$(printf '%s' "$BODY" | sed -n 's|^Mirror-Of: \([^/]*\)/\([^#]*\)#.*|\1 \2|p' | head -1)"
+                  footer_org="${mo%% *}"
+                  repo="${mo##* }"
+                  num="$(printf '%s' "$BODY" | sed -n 's/^Mirror-Pr-Number: \([0-9][0-9]*\).*/\1/p' | head -1)"
+                  if [ -z "$mo" ]; then footer_org="$ORG"; repo="${HEAD_REF%-import-pr-*}"; fi
+                  if [ -z "$num" ]; then num="${HEAD_REF##*-import-pr-}"; fi
+                  case "$num" in ''|*[!0-9]*) echo "::error::could not parse mirror PR number"; exit 1 ;; esac
+                  # The mirror must live under THIS org (reject a forged cross-org footer).
+                  if [ "$footer_org" != "$ORG" ]; then
+                    echo "::error::Mirror-Of org '$footer_org' != repository owner '$ORG'; refusing."; exit 1
+                  fi
+                  # Allowlist: only ever act on a known one-way mirror component.
+                  case "$repo" in {{ copybara_components | join("|") }}) ;;
+                    *) echo "::error::refusing to act on non-mirror repo '$repo'"; exit 1 ;;
+                  esac
+                  echo "repo=$repo" >> "$GITHUB_OUTPUT"
+                  echo "number=$num" >> "$GITHUB_OUTPUT"
+                  echo "Closing ${ORG}/${repo}#${num}"
+
+            - name: Mint scoped GitHub App token (mirror repo only)
+              id: app-token
+              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+              with:
+                  app-id: ${{ '{{' }} secrets.SYNC_APP_ID {{ '}}' }}
+                  private-key: ${{ '{{' }} secrets.SYNC_APP_PRIVATE_KEY {{ '}}' }}
+                  owner: ${{ '{{' }} github.repository_owner {{ '}}' }}
+                  repositories: ${{ '{{' }} steps.mirror.outputs.repo {{ '}}' }}
+
+            - name: Comment and close the mirror PR
+              env:
+                  GH_TOKEN: ${{ '{{' }} steps.app-token.outputs.token {{ '}}' }}
+                  ORG: ${{ '{{' }} github.repository_owner {{ '}}' }}
+                  MIRROR_REPO: ${{ '{{' }} steps.mirror.outputs.repo {{ '}}' }}
+                  MIRROR_PR: ${{ '{{' }} steps.mirror.outputs.number {{ '}}' }}
+                  MONO_PR: ${{ '{{' }} github.event.pull_request.number {{ '}}' }}
+              run: |
+                  set -euo pipefail
+                  gh pr comment "$MIRROR_PR" --repo "${ORG}/${MIRROR_REPO}" \
+                    --body "Imported and merged into ${ORG}/{{ project_kebab }}#${MONO_PR} (${MIRROR_REPO}/). The monorepo is the source of truth; this mirror PR is now closed. Your change will appear on this repo's main via the next Copybara export." || true
+                  gh pr close "$MIRROR_PR" --repo "${ORG}/${MIRROR_REPO}" || true

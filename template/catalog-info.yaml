@@ -1,0 +1,178 @@
+{%- set ns = namespace(count = 0) -%}
+{%- if javascript %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if python %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if go %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if java %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if scala %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if kotlin %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if cpp %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if rust %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if swift %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if shell %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if ruby %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- set kitchen_sink = ns.count >= 8 -%}
+{%- set minimal = ns.count == 0 -%}
+{%- if backstage -%}
+# Backstage catalog-info.yaml
+# This file registers the Template itself in Backstage's catalog
+# See https://backstage.io/docs/features/software-templates/
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+{%- if kitchen_sink %}
+  name: kitchen-sink-generated-blueprint
+{%- elif minimal %}
+  name: minimal-generated-blueprint
+{%- elif javascript %}
+  name: javascript-generated-blueprint
+{%- elif python %}
+  name: python-generated-blueprint
+{%- elif go %}
+  name: go-generated-blueprint
+{%- elif java %}
+  name: java-generated-blueprint
+{%- elif kotlin %}
+  name: kotlin-generated-blueprint
+{%- elif cpp %}
+  name: cpp-generated-blueprint
+{%- elif rust %}
+  name: rust-generated-blueprint
+{%- elif swift %}
+  name: swift-generated-blueprint
+{%- elif shell %}
+  name: shell-generated-blueprint
+{%- elif ruby %}
+  name: ruby-generated-blueprint
+{%- elif scala %}
+  name: scala-generated-blueprint
+{%- else %}
+  name: {{ project_snake }}
+{%- endif %}
+  description: Aspect Workflows Bazel Monorepo Templates
+spec:
+  type: url
+  targets:
+    - ./template.yaml
+{%- else -%}
+# catalog-info.yaml
+# See https://backstage.io/docs/features/software-catalog/descriptor-format
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+{%- if kitchen_sink %}
+  name: kitchen-sink-generated-blueprint
+{%- elif minimal %}
+  name: minimal-generated-blueprint
+{%- elif javascript %}
+  name: javascript-generated-blueprint
+{%- elif python %}
+  name: python-generated-blueprint
+{%- elif go %}
+  name: go-generated-blueprint
+{%- elif java %}
+  name: java-generated-blueprint
+{%- elif kotlin %}
+  name: kotlin-generated-blueprint
+{%- elif cpp %}
+  name: cpp-generated-blueprint
+{%- elif rust %}
+  name: rust-generated-blueprint
+{%- elif swift %}
+  name: swift-generated-blueprint
+{%- elif shell %}
+  name: shell-generated-blueprint
+{%- elif ruby %}
+  name: ruby-generated-blueprint
+{%- elif scala %}
+  name: scala-generated-blueprint
+{%- else %}
+  name: {{ project_snake }}
+{%- endif %}
+  description: Bazel project using Aspect Workflows
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - bazel
+    - aspect-workflows
+{%- if kitchen_sink %}
+    - kitchen-sink
+    - multi-language
+{%- elif minimal %}
+    - minimal
+{%- endif %}
+{%- if javascript %}
+    - javascript
+    - typescript
+{%- endif %}
+{%- if python %}
+    - python
+{%- endif %}
+{%- if go %}
+    - go
+{%- endif %}
+{%- if java %}
+    - java
+{%- endif %}
+{%- if kotlin %}
+    - kotlin
+{%- endif %}
+{%- if cpp %}
+    - cpp
+{%- endif %}
+{%- if rust %}
+    - rust
+{%- endif %}
+{%- if swift %}
+    - swift
+{%- endif %}
+{%- if shell %}
+    - shell
+{%- endif %}
+{%- if ruby %}
+    - ruby
+{%- endif %}
+{%- if scala %}
+    - scala
+{%- endif %}
+  links:
+{%- if kitchen_sink %}
+    - url: https://github.com/VitruvianSoftware/kitchen-sink
+{%- elif minimal %}
+    - url: https://github.com/VitruvianSoftware/minimal
+{%- elif javascript %}
+    - url: https://github.com/VitruvianSoftware/javascript
+{%- elif python %}
+    - url: https://github.com/VitruvianSoftware/python
+{%- elif go %}
+    - url: https://github.com/VitruvianSoftware/go
+{%- elif java %}
+    - url: https://github.com/VitruvianSoftware/java
+{%- elif kotlin %}
+    - url: https://github.com/VitruvianSoftware/kotlin
+{%- elif cpp %}
+    - url: https://github.com/VitruvianSoftware/cpp
+{%- elif rust %}
+    - url: https://github.com/VitruvianSoftware/rust
+{%- elif swift %}
+    - url: https://github.com/VitruvianSoftware/swift
+{%- elif shell %}
+    - url: https://github.com/VitruvianSoftware/shell
+{%- elif ruby %}
+    - url: https://github.com/VitruvianSoftware/ruby
+{%- elif scala %}
+    - url: https://github.com/VitruvianSoftware/scala
+{%- else %}
+    - url: https://github.com/VitruvianSoftware/unknown
+{%- endif %}
+      title: Repository
+      icon: github
+    - url: https://docs.aspect.build/
+      title: Aspect Documentation
+      icon: docs
+
+spec:
+  type: service
+  lifecycle: experimental
+  owner: team-platform
+  system: software-foundation
+{%- endif %}

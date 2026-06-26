@@ -1,0 +1,125 @@
+name: Copybara Import (reusable)
+
+# Reusable IMPORT: standalone/<component> (root) -> monorepo/<component>/.
+# Called by thin per-component `copybara-import-<component>.yaml` workflows,
+# which own the repository_dispatch trigger + the concurrency group.
+#
+# Auth: standalone origin over SSH via the component's deploy key; monorepo
+# destination over HTTPS via GITHUB_TOKEN (contents:write, to push the
+# imported change to the monorepo main branch).
+#
+# The retry-on-race logic lives inside the sync binary, not here; a single
+# `bazel run` call handles export/import uniformly.
+# Add per-component callers via the runbook (docs/copybara-bidi-sync.md).
+on:
+    workflow_call:
+        inputs:
+            component:
+                description: "Component / standalone repo name (e.g. my-lib). Maps to the import_<component> Copybara workflow."
+                required: true
+                type: string
+            standalone_only:
+                description: "Space-separated repo-relative paths that exist ONLY in the standalone (passed through for symmetry; import ignores them)."
+                required: false
+                type: string
+                default: ""
+            copybara_options:
+                description: "Copybara CLI options. Use '--force --ignore-noop' ONCE to seed the <COMPONENT>_REV_ID baseline; normal runs use --ignore-noop."
+                required: false
+                type: string
+                default: "--ignore-noop"
+        secrets:
+            sync_ssh_key:
+                description: "Private half of the standalone repo's write deploy key (used to READ the standalone origin)."
+                required: true
+
+permissions:
+    contents: write
+
+jobs:
+    import:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0 # full history so the conflict pre-check can reach the rev-id baseline
+
+            - name: Install Bazel
+              uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+              with:
+                  bazelisk-cache: true
+                  repository-cache: true
+                  bazelrc: |
+                      common --announce_rc --color=yes --curses=yes
+                      common --show_progress_rate_limit=60 --show_timestamps
+
+            - name: Set up Copybara auth (SSH deploy key + HTTPS token)
+              env:
+                  SSH_KEY: ${{ secrets.sync_ssh_key }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  mkdir -p ~/.ssh
+                  # OpenSSH requires exactly one trailing newline; normalize it.
+                  printf '%s\n' "${SSH_KEY%$'\n'}" > ~/.ssh/id_rsa
+                  chmod 600 ~/.ssh/id_rsa
+                  ssh-keyscan -t rsa,ed25519 github.com > ~/.ssh/known_hosts 2>/dev/null
+                  printf 'https://x-access-token:%s@github.com\n' "$GH_TOKEN" > ~/.git-credentials
+                  chmod 600 ~/.git-credentials
+                  printf '[credential]\n\thelper = store\n[user]\n\tname = Copybara Sync\n\temail = sync@github.com\n' > ~/.gitconfig
+
+            - name: Conflict pre-check (refuse to overwrite a concurrent edit)
+              env:
+                  CB_OPTS: ${{ inputs.copybara_options }}
+                  COMPONENT: ${{ inputs.component }}
+                  STANDALONE_ONLY: ${{ inputs.standalone_only }}
+              run: |
+                  # --force is a deliberate override (e.g. baseline seeding) — skip the guard.
+                  case "$CB_OPTS" in *--force*) echo "skipping conflict pre-check (--force override)"; exit 0 ;; esac
+                  GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_rsa -o UserKnownHostsFile=$HOME/.ssh/known_hosts" \
+                    git clone --no-tags "git@github.com:${{ github.repository_owner }}/${COMPONENT}.git" \
+                    "$RUNNER_TEMP/${COMPONENT}-peer"
+                  # STANDALONE_ONLY is intentionally unquoted: it word-splits into separate pathspec args.
+                  # shellcheck disable=SC2086
+                  bazel run //tools/copybara/conflict_precheck -- \
+                    import "$COMPONENT" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/${COMPONENT}-peer" \
+                    $STANDALONE_ONLY
+
+            - name: Copybara import (standalone -> monorepo/<component>/)
+              env:
+                  CB_OPTS: ${{ inputs.copybara_options }}
+                  COMPONENT: ${{ inputs.component }}
+              run: |
+                  # Retry-on-race logic is built into the sync binary (concurrent imports
+                  # race to push to the same monorepo main; the binary re-fetches and retries).
+                  bazel run //tools/copybara/sync -- \
+                    import "$COMPONENT" --options "$CB_OPTS"
+
+            - name: Regenerate gazelle BUILD files after import (bazel run //:tidy)
+              env:
+                  COMPONENT: ${{ inputs.component }}
+              run: |
+                  set -euo pipefail
+                  # Copybara excludes the monorepo-only gazelle BUILD files from the sync, so a
+                  # component that adds files/packages would otherwise land on main with stale or
+                  # missing BUILD (red build-test / tidy-check). Regenerate them and commit so main
+                  # stays green. A no-op import leaves a clean tree, so nothing is committed.
+                  # main is shared with other component imports: re-sync + retry on a push race.
+                  for attempt in 1 2 3 4 5; do
+                    git fetch origin main
+                    git checkout -B main origin/main
+                    bazel run //:tidy
+                    git add -A
+                    if git diff --cached --quiet; then
+                      echo "BUILD already up to date after import — nothing to regenerate."
+                      exit 0
+                    fi
+                    git commit -m "chore(bazel): tidy BUILD after ${COMPONENT} import"
+                    if git push origin main; then
+                      echo "Pushed BUILD regeneration for ${COMPONENT} import."
+                      exit 0
+                    fi
+                    echo "push rejected (attempt ${attempt}/5) — main advanced; re-syncing"
+                    sleep $((attempt * 3))
+                  done
+                  echo "::error::could not push BUILD regeneration after ${COMPONENT} import"
+                  exit 1

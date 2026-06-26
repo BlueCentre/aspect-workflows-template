@@ -1,0 +1,1152 @@
+{
+  "flags": [
+    "javascript",
+    "python",
+    "go",
+    "java",
+    "scala",
+    "kotlin",
+    "cpp",
+    "rust",
+    "ruby",
+    "shell",
+    "lint",
+    "license",
+    "proto",
+    "stamp",
+    "oci",
+    "swift",
+    "copybara",
+    "copybara_one_way",
+    "copybara_pulumi_auth",
+    "copybara_bidi",
+    "backstage"
+  ],
+  "presets": {
+    "minimal": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "shell": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": true,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "go": {
+      "javascript": false,
+      "python": false,
+      "go": true,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": true,
+      "platforms": true,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "js": {
+      "javascript": true,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "py": {
+      "javascript": false,
+      "python": true,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "java": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": true,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": true,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "kotlin": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": true,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "cpp": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": true,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "rust": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": true,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "ruby": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": true,
+      "shell": false,
+      "lint": true,
+      "proto": true,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "scala": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": true,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "kitchen-sink": {
+      "javascript": true,
+      "python": true,
+      "go": true,
+      "java": true,
+      "scala": true,
+      "kotlin": true,
+      "cpp": true,
+      "rust": true,
+      "ruby": true,
+      "shell": true,
+      "lint": true,
+      "proto": true,
+      "stamp": true,
+      "oci": true,
+      "platforms": true,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "swift": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": true,
+      "lint": true,
+      "license": true,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "copybara-go": {
+      "javascript": false,
+      "python": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": false,
+      "go": true,
+      "lint": true,
+      "license": true,
+      "copybara": true,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [
+        "example-component"
+      ],
+      "copybara_bidi": true,
+      "backstage": false
+    },
+    "copybara-oneway": {
+      "javascript": false,
+      "python": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": false,
+      "go": true,
+      "lint": true,
+      "license": true,
+      "copybara": true,
+      "copybara_one_way": true,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [
+        "example-component"
+      ],
+      "copybara_bidi": false,
+      "backstage": false
+    },
+    "backstage-minimal": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-shell": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": true,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-go": {
+      "javascript": false,
+      "python": false,
+      "go": true,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": true,
+      "platforms": true,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-js": {
+      "javascript": true,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-py": {
+      "javascript": false,
+      "python": true,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-java": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": true,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": true,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-kotlin": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": true,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-cpp": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": true,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-rust": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": true,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-ruby": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": true,
+      "shell": false,
+      "lint": true,
+      "proto": true,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-scala": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": true,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "lint": true,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-kitchen-sink": {
+      "javascript": true,
+      "python": true,
+      "go": true,
+      "java": true,
+      "scala": true,
+      "kotlin": true,
+      "cpp": true,
+      "rust": true,
+      "ruby": true,
+      "shell": true,
+      "lint": true,
+      "proto": true,
+      "stamp": true,
+      "oci": true,
+      "platforms": true,
+      "license": true,
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    },
+    "backstage-swift": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": true,
+      "lint": true,
+      "license": true,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false,
+      "backstage": true
+    }
+  },
+  "rules": [
+    {
+      "any": [
+        "java",
+        "kotlin",
+        "scala"
+      ],
+      "globs": [
+        "bazel/java17.bazelrc"
+      ]
+    },
+    {
+      "flag": "license",
+      "globs": [
+        "LICENSE"
+      ]
+    },
+    {
+      "flag": "lint",
+      "globs": [
+        "tools/format/**",
+        "tools/lint/**"
+      ]
+    },
+    {
+      "all": [
+        "lint",
+        "javascript"
+      ],
+      "globs": [
+        "prettier.config.cjs",
+        "eslint.config.mjs"
+      ]
+    },
+    {
+      "flag": "stamp",
+      "globs": [
+        "bazel/workspace_status.sh",
+        ".github/workflows/weekly_tag.yaml"
+      ]
+    },
+    {
+      "all": [
+        "lint",
+        "shell"
+      ],
+      "globs": [
+        ".shellcheckrc"
+      ]
+    },
+    {
+      "all": [
+        "lint",
+        "ruby"
+      ],
+      "globs": [
+        ".rubocop.yml"
+      ]
+    },
+    {
+      "flag": "javascript",
+      "globs": [
+        "package.json",
+        "tools/package.json",
+        "pnpm-*.yaml",
+        "*.config.cjs",
+        "*.config.mjs",
+        ".npmrc",
+        ".nvmrc",
+        "packages/**",
+        ".aspect/gazelle/package-json*.axl"
+      ]
+    },
+    {
+      "flag": "python",
+      "globs": [
+        "pyproject.toml",
+        "uv.lock",
+        "tools/pytest/**"
+      ]
+    },
+    {
+      "flag": "go",
+      "globs": [
+        "go.mod",
+        "go.sum",
+        "tools/tools.go"
+      ]
+    },
+    {
+      "flag": "kotlin",
+      "globs": [
+        "ktlint-baseline.xml",
+        ".editorconfig"
+      ]
+    },
+    {
+      "flag": "ruby",
+      "globs": [
+        "Gemfile",
+        "Gemfile.lock",
+        ".ruby-version"
+      ]
+    },
+    {
+      "flag": "java",
+      "globs": [
+        "maven_install.json"
+      ]
+    },
+    {
+      "all": [
+        "lint",
+        "java"
+      ],
+      "globs": [
+        "pmd.xml"
+      ]
+    },
+    {
+      "flag": "cpp",
+      "globs": [
+        ".clang-tidy"
+      ]
+    },
+    {
+      "flag": "oci",
+      "globs": [
+        "bazel/oci/BUILD.bazel"
+      ]
+    },
+    {
+      "flag": "platforms",
+      "globs": [
+        "bazel/platforms/**"
+      ]
+    },
+    {
+      "flag": "shell",
+      "globs": [
+        ".aspect/gazelle/shell.axl"
+      ]
+    },
+    {
+      "all": [
+        "oci",
+        "python"
+      ],
+      "globs": [
+        "bazel/oci/py3_image.bzl"
+      ]
+    },
+    {
+      "all": [
+        "oci",
+        "go"
+      ],
+      "globs": [
+        ".aspect/gazelle/go_image.axl",
+        "bazel/oci/go_image.bzl"
+      ]
+    },
+    {
+      "flag": "rust",
+      "globs": [
+        "Cargo.*",
+        ".clippy.toml"
+      ]
+    },
+    {
+      "flag": "go",
+      "globs": [
+        "hello/go/**"
+      ]
+    },
+    {
+      "flag": "python",
+      "globs": [
+        "hello/py/**"
+      ]
+    },
+    {
+      "flag": "javascript",
+      "globs": [
+        "hello/js/**"
+      ]
+    },
+    {
+      "flag": "java",
+      "globs": [
+        "hello/java/**"
+      ]
+    },
+    {
+      "flag": "kotlin",
+      "globs": [
+        "hello/kotlin/**"
+      ]
+    },
+    {
+      "flag": "scala",
+      "globs": [
+        "hello/scala/**"
+      ]
+    },
+    {
+      "flag": "cpp",
+      "globs": [
+        "hello/cpp/**"
+      ]
+    },
+    {
+      "flag": "rust",
+      "globs": [
+        "hello/rust/**"
+      ]
+    },
+    {
+      "flag": "ruby",
+      "globs": [
+        "hello/ruby/**"
+      ]
+    },
+    {
+      "flag": "shell",
+      "globs": [
+        "hello/shell/**"
+      ]
+    },
+    {
+      "flag": "license",
+      "globs": [
+        "tools/license/**"
+      ]
+    },
+    {
+      "flag": "license",
+      "globs": [
+        ".github/workflows/license-check.yml"
+      ]
+    },
+    {
+      "flag": "swift",
+      "globs": [
+        "swift/**",
+        "hello/swift/**"
+      ]
+    },
+    {
+      "flag": "copybara",
+      "globs": [
+        "tools/copybara/copy.bara.sky",
+        "tools/copybara/sync/**",
+        "tools/copybara/drift_check/**",
+        "tools/copybara/conflict_precheck/**",
+        "tools/copybara/cla/**",
+        "tools/copybara/sync-to-monorepo.yaml",
+        ".github/workflows/_copybara-export.yaml"
+      ]
+    },
+    {
+      "flag": "copybara_bidi",
+      "globs": [
+        ".github/workflows/_copybara-import.yaml",
+        ".github/workflows/copybara-drift-check.yaml",
+        "docs/copybara-bidi-sync.md"
+      ]
+    },
+    {
+      "all": [
+        "copybara",
+        "copybara_one_way"
+      ],
+      "globs": [
+        ".github/workflows/copybara-import-pr.yaml",
+        ".github/workflows/copybara-import-pr-close.yaml",
+        "docs/copybara-oneway-sync.md"
+      ]
+    },
+    {
+      "all": [
+        "copybara",
+        "copybara_pulumi_auth"
+      ],
+      "globs": [
+        "infrastructure/pulumi/copybara_sync/**"
+      ]
+    },
+    {
+      "flag": "backstage",
+      "globs": [
+        "template.yaml",
+        "skeleton/**",
+        ".bazelignore"
+      ]
+    },
+    {
+      "flag": "go",
+      "globs": [
+        "docs/dependency-versioning/go.md"
+      ]
+    },
+    {
+      "flag": "python",
+      "globs": [
+        "docs/dependency-versioning/python.md"
+      ]
+    },
+    {
+      "flag": "javascript",
+      "globs": [
+        "docs/dependency-versioning/javascript.md"
+      ]
+    },
+    {
+      "flag": "java",
+      "globs": [
+        "docs/dependency-versioning/java.md"
+      ]
+    },
+    {
+      "flag": "kotlin",
+      "globs": [
+        "docs/dependency-versioning/kotlin.md"
+      ]
+    },
+    {
+      "flag": "scala",
+      "globs": [
+        "docs/dependency-versioning/scala.md"
+      ]
+    },
+    {
+      "flag": "cpp",
+      "globs": [
+        "docs/dependency-versioning/cpp.md"
+      ]
+    },
+    {
+      "flag": "rust",
+      "globs": [
+        "docs/dependency-versioning/rust.md"
+      ]
+    },
+    {
+      "flag": "ruby",
+      "globs": [
+        "docs/dependency-versioning/ruby.md"
+      ]
+    },
+    {
+      "flag": "swift",
+      "globs": [
+        "docs/dependency-versioning/swift.md"
+      ]
+    }
+  ],
+  "no_render": [
+    "LICENSE",
+    "Cargo.lock",
+    "Gemfile.lock",
+    "go.sum",
+    "pnpm-lock.yaml",
+    "maven_install.json",
+    "bazel/preset.bazelrc",
+    ".github/workflows/weekly_tag.yaml",
+    "hello/kotlin/*.kt",
+    "hello/scala/*.scala",
+    "hello/ruby/*.rb",
+    "hello/py/*.py",
+    "hello/js/*.ts",
+    "hello/js/tsconfig.json",
+    "hello/java/*.java",
+    "hello/go/*.go",
+    "hello/cpp/*.cc",
+    "hello/cpp/*.h",
+    "hello/rust/*.rs",
+    "hello/shell/*.sh",
+    "tools/license/defs.bzl",
+    ".github/workflows/license-check.yml",
+    "tools/remote/setup.sh",
+    "user.bazelrc.example",
+    "docs/build-cache.md",
+    "docs/remote-build.md",
+    ".devcontainer/Dockerfile.kitchen-sink",
+    ".devcontainer/kind-config.yaml",
+    ".devcontainer/README.md",
+    "tools/scripts/kind-cluster.sh",
+    ".github/workflows/_copybara-export.yaml",
+    ".github/workflows/_copybara-import.yaml",
+    ".github/workflows/copybara-drift-check.yaml",
+    "tools/copybara/cla/cla.yml",
+    "tools/copybara/sync-to-monorepo.yaml",
+    "tools/copybara/sync/main.go",
+    "tools/copybara/sync/main_test.go",
+    "tools/copybara/drift_check/main.go",
+    "tools/copybara/drift_check/main_test.go",
+    "tools/copybara/conflict_precheck/main.go",
+    "tools/copybara/conflict_precheck/main_test.go",
+    "docs/copybara-bidi-sync.md",
+    "docs/copybara-oneway-sync.md",
+    "infrastructure/pulumi/copybara_sync/BUILD",
+    ".github/workflows/_repo-config-preview.yaml",
+    ".github/workflows/_repo-config-apply.yaml",
+    "tools/pulumi/pulumi_cmd.sh",
+    "tools/pulumi/pulumi_setup.sh",
+    "tools/pulumi/create_app.sh"
+  ],
+  "executable": [
+    "bazel/workspace_status.sh",
+    "hello/shell/hello.sh",
+    "hello/shell/hello_test.sh",
+    "tools/pulumi/create_app.sh",
+    "tools/pulumi/pulumi_cmd.sh",
+    "tools/pulumi/pulumi_setup.sh",
+    "tools/remote/setup.sh",
+    "tools/repin",
+    "tools/scripts/copilot",
+    "tools/scripts/gemini",
+    "tools/scripts/kind-cluster.sh"
+  ]
+}

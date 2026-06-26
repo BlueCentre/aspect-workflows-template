@@ -1,79 +1,108 @@
+name: Deliver starters
+
+# Render every preset from the local template/ tree (the same renderer `aspect
+# init` uses) and force-push each to its VitruvianSoftware/<preset> starter repo.
+# Replaces the old hay-kot/scaffold flow; the starter set + deploy keys are
+# unchanged (STARTER_DEPLOY_<PRESET> secrets, Pulumi-managed).
 on:
-    push:
-        branches: [main, push_starters, platform-v2.0]
+  push:
+    branches: [main, push_starters, platform-v2.0]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BAZELISK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-    deliver:
-        strategy:
-            fail-fast: false
-            matrix:
-                preset:
-                    - cpp
-                    - go
-                    - java
-                    - js
-                    - kitchen-sink
-                    - kotlin
-                    - minimal
-                    - py
-                    - rust
-                    - swift
-                    - ruby
-                    - shell
-                    - scala
-                    - backstage-cpp
-                    - backstage-go
-                    - backstage-java
-                    - backstage-js
-                    - backstage-kitchen-sink
-                    - backstage-kotlin
-                    - backstage-minimal
-                    - backstage-py
-                    - backstage-ruby
-                    - backstage-rust
-                    - backstage-swift
-                    - backstage-scala
-                    - backstage-shell
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v6
-            - uses: jaxxstorm/action-install-gh-release@25e24d2d23ae098373794ef1d6faecb48ee52da8 # v3.0.0
-              with:
-                repo: hay-kot/scaffold
-                tag: v0.12.1
-            - name: setting to always run hooks
-              if: "${{ matrix.preset != 'minimal' }}"
-              run: echo "SCAFFOLD_SETTINGS_RUN_HOOKS=always" >> "$GITHUB_ENV"
-            - name: Scaffold new app
-              id: scaffold
-              run: |
-                scaffold new --preset=${{ matrix.preset }} --no-prompt $GITHUB_WORKSPACE
-                cd scaffold_test*
-                cp $GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md README.md
-                # Ship the platform CHANGELOG (maintained by release-please) so a developer who
-                # generated from this starter can track what changed upstream and decide what to port.
-                if [ -f "$GITHUB_WORKSPACE/CHANGELOG.md" ]; then cp "$GITHUB_WORKSPACE/CHANGELOG.md" CHANGELOG.md; fi
-                git init
-                git add .
-                git config user.email "git@nocentre.net"
-                git config user.name "Git, the Delivery bot"
-                git commit -a -m "template"
-                echo "dir=$PWD" >> $GITHUB_OUTPUT
-            - name: Convert preset name to deploy secret name
-              id: which-secret
-              run: |
-                CLEAN="${{ matrix.preset }}"
-                CLEAN="${CLEAN//-/_}"       
-                echo "secret-name=STARTER_DEPLOY_${CLEAN^^}" >> "$GITHUB_OUTPUT"
-            - name: Force-Push to Starter repo
-              working-directory: ${{ steps.scaffold.outputs.dir }}
-              env:
-                SSH_KEY: ${{ secrets[steps.which-secret.outputs.secret-name] }}
-                SECRET_NAME: ${{ steps.which-secret.outputs.secret-name }}
-              run: |
-                if [ -z "$SSH_KEY" ]; then
-                  echo "::error::Secret $SECRET_NAME is missing or empty. Please create it in GitHub Settings."
-                  exit 1
-                fi
-                eval $(ssh-agent -s)
-                ssh-add - <<< "$SSH_KEY"
-                git push  --force git@github.com:VitruvianSoftware/${{ matrix.preset }}.git HEAD:main
+  deliver:
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - cpp
+          - go
+          - java
+          - js
+          - kitchen-sink
+          - kotlin
+          - minimal
+          - py
+          - rust
+          - swift
+          - ruby
+          - shell
+          - scala
+          - backstage-cpp
+          - backstage-go
+          - backstage-java
+          - backstage-js
+          - backstage-kitchen-sink
+          - backstage-kotlin
+          - backstage-minimal
+          - backstage-py
+          - backstage-ruby
+          - backstage-rust
+          - backstage-swift
+          - backstage-scala
+          - backstage-shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Aspect CLI
+        uses: aspect-build/setup-aspect@36c688a9bbb0c84d55d7eca31bf3215e9d265bff # v2026.24.1
+        with:
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+
+      - name: Render + normalize + apply license headers
+        id: render
+        run: |
+          aspect render-preset --preset='${{ matrix.preset }}' --out="$RUNNER_TEMP/out" --name=my_project --license=Apache-2.0
+          cd "$RUNNER_TEMP/out"
+          if [ -x ./tools/repin ]; then ./tools/repin; fi
+          bazel mod deps --lockfile_mode=update || true
+          git init -q
+          git config user.email "git@nocentre.net"
+          git config user.name "Git, the Delivery bot"
+          git add -A
+          git commit -q -m "template"
+          # Normalize exactly as CI does (buildifier + gazelle + format).
+          bazel run --run_in_cwd @buildifier_prebuilt//buildifier -- -r . || true
+          aspect gazelle --github-status-comments:enabled=false --github-status-checks:enabled=false --check-only=false || true
+          case "${{ matrix.preset }}" in
+            minimal|scala|ruby|backstage-minimal|backstage-scala|backstage-ruby) ;;
+            *) aspect format --github-status-comments:enabled=false --github-status-checks:enabled=false --scope=all || true ;;
+          esac
+          # Apply Apache-2.0 headers (we rendered with --license=Apache-2.0).
+          bazel run //tools/license:add || true
+          # Ship the platform CHANGELOG (maintained by release-please) so downstream
+          # devs can track upstream changes.
+          if [ -f "$GITHUB_WORKSPACE/CHANGELOG.md" ]; then cp "$GITHUB_WORKSPACE/CHANGELOG.md" CHANGELOG.md; fi
+          git add -A
+          git commit -q --amend --no-edit
+          echo "dir=$PWD" >> "$GITHUB_OUTPUT"
+
+      - name: Convert preset name to deploy secret name
+        id: which-secret
+        run: |
+          CLEAN="${{ matrix.preset }}"
+          CLEAN="${CLEAN//-/_}"
+          echo "secret-name=STARTER_DEPLOY_${CLEAN^^}" >> "$GITHUB_OUTPUT"
+
+      - name: Force-push to starter repo
+        working-directory: ${{ steps.render.outputs.dir }}
+        env:
+          SSH_KEY: ${{ secrets[steps.which-secret.outputs.secret-name] }}
+          SECRET_NAME: ${{ steps.which-secret.outputs.secret-name }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::Secret $SECRET_NAME is missing or empty. Create it (Pulumi-managed deploy key) in GitHub Settings."
+            exit 1
+          fi
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "$SSH_KEY"
+          git push --force git@github.com:VitruvianSoftware/${{ matrix.preset }}.git HEAD:main
