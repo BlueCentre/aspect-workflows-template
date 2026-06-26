@@ -36,10 +36,10 @@ A preset is "done" when render → tidy(no-op) → build/test/story all pass.
 
 - [x] **Phase 0 — Foundation.** DONE (commit 4c84a97). Engine vendored, old engine removed; minimal/py/go/kitchen-sink render, minimal+py build & test green.
 - [x] **Phase 1 — Build-config parity (G).** DONE — **no-op**. Upstream's base already subsumes ALL of our Bazel-upgrade work, and improves on it: Bazel 9.1.1 ✓; `aspect_rules_lint` 2.7.x with rubocop SARIF fixed → **our rubocop patch + single_version_override are obsolete, dropped with the old tree** ✓; rules_go/rules_nodejs CcInfo floors handled by the modern base ✓; **LLVM 19.1.7 across all platforms** (toolchains_llvm 1.8.0, rules_cc 0.2.18) — strictly better than our darwin-arm64→17.0.6 fix, and **cpp builds on Apple Silicon locally (157 actions, exit 0)** ✓; Rust via rules_rs + aspect_rules_lint_rust (the published clippy module we wanted) ✓. Nothing to port.
-- [ ] **Phase 2 — Independent generated-tree features (low-risk, parallelizable):**
-  - L: AGENTS.md (gen-tree + root) + copilot/gemini wrappers.
-  - B: `//:tidy` aggregator + Tidy Check gate + CI tidy-clean assertion.
-  - C: license-check (LICENSE 4-way, addlicense tool, workflow, tools.lock entry, header block macro — must render identically to stay tidy-clean).
+- **Phase 2 — Independent generated-tree features (low-risk, parallelizable):**
+  - [x] L: AGENTS.md (gen-tree) + copilot/gemini wrappers. DONE (commit bcf8aec). Root AGENTS.md/copilot-instructions deferred to Phase 6 (template-tooling).
+  - [x] B: `//:tidy` — **DROPPED as subsumed.** The new engine ships unified `aspect gazelle` / `aspect format` / `aspect buildifier` tasks, and its CI enforces the fixed-point via those. A `bazel run //:tidy` multirun over the raw `//tools/gazelle:gazelle` target *diverges* from the canonical `aspect gazelle` (verified: it rewrote BUILD files on a fresh py render), so re-adding it would break the tidy-clean invariant, not help it. Same call as feature G in Phase 1.
+  - [ ] C: license-check (LICENSE 4-way, addlicense tool, workflow, tools.lock entry, header block macro — must render identically to stay tidy-clean).
   - F: RBE/remote-build + build-cache menu + key-rotation SOP.
   - K: devcontainer (kitchen-sink Dockerfile, kind, arch-aware).
   - O: format/prettier wrapper, `.gitattributes` lint-ignores, misc tool tweaks.
