@@ -462,6 +462,18 @@
       "globs": [
         "hello/shell/**"
       ]
+    },
+    {
+      "flag": "license",
+      "globs": [
+        "tools/license/**"
+      ]
+    },
+    {
+      "flag": "license",
+      "globs": [
+        ".github/workflows/license-check.yml"
+      ]
     }
   ],
   "no_render": [
@@ -471,7 +483,6 @@
     "go.sum",
     "pnpm-lock.yaml",
     "maven_install.json",
-    "tools/tools.lock.json",
     "bazel/preset.bazelrc",
     ".github/workflows/weekly_tag.yaml",
     "hello/kotlin/*.kt",
@@ -485,7 +496,9 @@
     "hello/cpp/*.cc",
     "hello/cpp/*.h",
     "hello/rust/*.rs",
-    "hello/shell/*.sh"
+    "hello/shell/*.sh",
+    "tools/license/defs.bzl",
+    ".github/workflows/license-check.yml"
   ],
   "executable": [
     "bazel/workspace_status.sh",
