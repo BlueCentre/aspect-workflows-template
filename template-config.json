@@ -502,7 +502,11 @@
     "tools/remote/setup.sh",
     "user.bazelrc.example",
     "docs/build-cache.md",
-    "docs/remote-build.md"
+    "docs/remote-build.md",
+    ".devcontainer/Dockerfile.kitchen-sink",
+    ".devcontainer/kind-config.yaml",
+    ".devcontainer/README.md",
+    "tools/scripts/kind-cluster.sh"
   ],
   "executable": [
     "bazel/workspace_status.sh",
@@ -511,6 +515,7 @@
     "tools/remote/setup.sh",
     "tools/repin",
     "tools/scripts/copilot",
-    "tools/scripts/gemini"
+    "tools/scripts/gemini",
+    "tools/scripts/kind-cluster.sh"
   ]
 }

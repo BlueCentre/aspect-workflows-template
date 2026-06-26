@@ -2,9 +2,12 @@
 # - prevents GitHub from showing deltas during code review
 # - informs the rules_lint formatter not to apply formatting rules
 
-# Vendored AI-assistant wrappers: thin npx shims, kept verbatim (not formatted).
-tools/scripts/copilot  linguist-generated=true
-tools/scripts/gemini   linguist-generated=true
+# Vendored / tool-managed files kept verbatim (not reformatted by rules_lint).
+*.axl                     linguist-generated=true
+.vscode/*.json            linguist-generated=true
+.devcontainer/*.json      linguist-generated=true
+tools/scripts/*           linguist-generated=true
+tools/remote/setup.sh     linguist-generated=true
 {% if java %}
 maven_install.json     linguist-generated=true
 {% endif %}
