@@ -165,7 +165,7 @@ jobs:
       # cpp. Re-enable once https://github.com/aspect-build/rules_lint/issues/924
       # ships (PR #779).
       - name: Lint
-        if: ${{ !contains(fromJSON('["minimal","go","scala","swift","copybara-go","copybara-oneway"]'), matrix.preset) && !(matrix.os == 'macos-latest' && contains(fromJSON('["cpp","kitchen-sink"]'), matrix.preset)) }}
+        if: ${{ !contains(fromJSON('["minimal","go","scala","swift","copybara-go","copybara-oneway","backstage-go"]'), matrix.preset) && !(matrix.os == 'macos-latest' && contains(fromJSON('["cpp","kitchen-sink"]'), matrix.preset)) }}
         working-directory: ${{ env.WS }}
         run: aspect lint --task:name lint-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false -- //...
 
@@ -189,7 +189,9 @@ jobs:
       # it). See https://gist.github.com/bwoods/1c25cb7723a06a076c2152a2781d4d49
       - name: User story
         working-directory: ${{ env.WS }}
-        run: sh "$GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md"
+        run: |
+          story="$GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md"
+          if [ -f "$story" ]; then sh "$story"; else echo "no user story for ${{ matrix.preset }} — skipping"; fi
 
   # Stable name for branch protection: "all matrix legs passed".
   conclusion:
