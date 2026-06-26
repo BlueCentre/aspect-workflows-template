@@ -14,7 +14,8 @@
     "license",
     "proto",
     "stamp",
-    "oci"
+    "oci",
+    "swift"
   ],
   "presets": {
     "minimal": {
@@ -33,7 +34,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "shell": {
       "javascript": false,
@@ -51,7 +53,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "go": {
       "javascript": false,
@@ -69,7 +72,8 @@
       "stamp": false,
       "oci": true,
       "platforms": true,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "js": {
       "javascript": true,
@@ -87,7 +91,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "py": {
       "javascript": false,
@@ -105,7 +110,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "java": {
       "javascript": false,
@@ -123,7 +129,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "kotlin": {
       "javascript": false,
@@ -141,7 +148,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "cpp": {
       "javascript": false,
@@ -159,7 +167,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "rust": {
       "javascript": false,
@@ -177,7 +186,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "ruby": {
       "javascript": false,
@@ -195,7 +205,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "scala": {
       "javascript": false,
@@ -213,7 +224,8 @@
       "stamp": false,
       "oci": false,
       "platforms": false,
-      "license": true
+      "license": true,
+      "swift": false
     },
     "kitchen-sink": {
       "javascript": true,
@@ -231,6 +243,26 @@
       "stamp": true,
       "oci": true,
       "platforms": true,
+      "license": true,
+      "swift": true
+    },
+    "swift": {
+      "javascript": false,
+      "python": false,
+      "go": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": true,
+      "lint": true,
       "license": true
     }
   },
@@ -473,6 +505,13 @@
       "flag": "license",
       "globs": [
         ".github/workflows/license-check.yml"
+      ]
+    },
+    {
+      "flag": "swift",
+      "globs": [
+        "swift/**",
+        "hello/swift/**"
       ]
     }
   ],
