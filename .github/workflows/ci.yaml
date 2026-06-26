@@ -1,162 +1,205 @@
 name: CI
 on:
-    push:
-        branches: [main, platform-v2.0]
-    pull_request:
-        branches: [main, platform-v2.0]
+  push:
+    branches: [main, platform-v2.0]
+  pull_request:
 
-jobs:        
-    test:
-        strategy:
-            # Let every preset leg run to completion: one failing leg cancelling
-            # the rest hides whether the failure is preset-specific or global.
-            fail-fast: false
-            matrix:
-                scaffold-version:
-                    - v0.12.1
-                preset:
-                    - cpp
-                    - go
-                    - java
-                    - kotlin
-                    - js
-                    - minimal
-                    - py
-                    - kitchen-sink
-                    - rust
-                    - swift
-                    - ruby
-                    - shell
-                    - scala
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v6
-            # The Swift toolchain is now HERMETIC: rules_swift's `swift` bzlmod
-            # extension downloads a standalone toolchain from swift.org, so no
-            # swift-actions/setup-swift (host Swift install) step is needed.
-            #
-            # rules_swift's Linux toolchain still links via the configured CC
-            # toolchain, which must be LLVM (clang); ubuntu-latest defaults to gcc,
-            # so Bazel's auto-detected @local_config_cc must see CC=clang. Export it
-            # before the FIRST bazel invocation (bazel run //tools:bazel_env) so the
-            # cc toolchain is detected as clang.
-            - name: Use clang as the C/C++ toolchain for Swift
-              if: ${{ matrix.preset == 'swift' }}
-              run: |
-                echo "CC=clang" >> "$GITHUB_ENV"
-                echo "CXX=clang++" >> "$GITHUB_ENV"
-            - name: Install Bazel
-              uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
-              with:
-                bazelisk-cache: true
-                repository-cache: true
-                bazelrc: |
-                  common --announce_rc --color=yes --curses=yes
-                  common --show_progress_rate_limit=60 --show_timestamps
-            - name: Install scaffold
-              uses: jaxxstorm/action-install-gh-release@25e24d2d23ae098373794ef1d6faecb48ee52da8 # v3.0.0
-              with:
-                repo: hay-kot/scaffold
-                tag: v0.12.1
-            - name: Install direnv
-              run: |
-                    sudo apt-get install -y direnv
-                    eval "$(direnv hook bash)"
-            - name: setting to always run hooks
-              if: "${{ matrix.preset != 'minimal' }}"
-              run: echo "SCAFFOLD_SETTINGS_RUN_HOOKS=always" >> "$GITHUB_ENV"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
-            - name: Scaffold new app
-              id: scaffold
-              run: |
-                scaffold new --preset=${{ matrix.preset }} --no-prompt $GITHUB_WORKSPACE
-                cd scaffold_test*
-                git init
-                git add .
-                git config user.email "noreply@aspect.build"
-                git config user.name "No One"
-                git commit -a -m "initial commit"
-                git show
-                echo "dir=$PWD" >> $GITHUB_OUTPUT
+permissions:
+  id-token: write
+  contents: read
 
-            - name: setup direnv
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              run: |
-                  direnv allow .
-                  eval "$(direnv export bash)"
-                  # GHA steps run as non-interactive shells so they don't source the .bashrc
-                  echo "PATH=$PATH" >> $GITHUB_ENV
-                  echo "ORION_EXTENSIONS_DIR=$ORION_EXTENSIONS_DIR" >> $GITHUB_ENV
-                  bazel run //tools:bazel_env
+# The aspect-launcher and bazelisk resolve their versions via the GitHub
+# releases API. Unauthenticated that API is capped at 60 req/hr by source IP,
+# which the macOS legs blow through on a cold cache (all presets stampede the
+# API at once on the first-ever macOS run) → "403 API rate limit exceeded".
+# Authenticate those calls with the job token to get the 5000 req/hr limit.
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BAZELISK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - run: format
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              if: "${{ matrix.preset != 'minimal' }}"
+jobs:
+  # Render every preset from the local template tree (via the shared renderer the
+  # `aspect init` command also uses) and prove the generated workspace is valid:
+  # repin lockfiles, then build/test, and lint/format for lint-enabled presets.
+  # This gates template changes BEFORE they land on main.
+  preset:
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - minimal
+          - shell
+          - go
+          - js
+          - py
+          - java
+          - kotlin
+          - cpp
+          - rust
+          - ruby
+          - scala
+          - kitchen-sink
+          - swift
+          - copybara-go
+          - copybara-oneway
+          - backstage-go
+          - backstage-py
+          - backstage-kitchen-sink
+        # macOS runners are billed at 10x Linux on GHA, so only exercise them
+        # on main pushes (where Apple-Silicon-only breakage like the
+        # distroless linux/arm64/v8 manifest bug would otherwise slip through);
+        # PRs stay Linux-only.
+        os: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/platform-v2.0')) && fromJSON('["ubuntu-latest","macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
 
-            - name: format made no changes
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              run: git diff --exit-code
+      - name: Install Aspect CLI
+        uses: aspect-build/setup-aspect@36c688a9bbb0c84d55d7eca31bf3215e9d265bff # v2026.24.1
+        with:
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
 
-            # Mirrors the Tidy Check workflow delivered into every starter
-            # (tidy-check.yaml): a freshly scaffolded repo must be a fixed point
-            # of `bazel run //:tidy`, or the starter's first Tidy Check run fails
-            # on delivery. Runs for every preset, including minimal (which skips
-            # the post-scaffold hooks, so its raw render is what ships).
-            # MODULE.bazel.lock is ignored for the same reason as in tidy-check:
-            # Bazel may (re)generate it while resolving the module graph.
-            # ORION_EXTENSIONS_DIR (exported into the job env by the direnv step
-            # above) is unset to match the starter's Tidy Check environment:
-            # tidy-check.yaml has no direnv, so the .axl gazelle extensions are
-            # not loaded there, and with the variable set gazelle would generate
-            # extra targets (e.g. shell.axl creates tools/scripts/BUILD) that
-            # the delivered tree does not ship.
-            - name: Tidy made no changes
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              run: |
-                  unset ORION_EXTENSIONS_DIR
-                  bazel run //:tidy
-                  changed="$(git status --porcelain -- ':!MODULE.bazel.lock')"
-                  if [ -n "$changed" ]; then
-                    echo "::error::Preset '${{ matrix.preset }}' is not tidy-clean after scaffolding. Fix the template so 'bazel run //:tidy' is a no-op on a fresh render."
-                    echo "$changed"
-                    git diff -- ':!MODULE.bazel.lock'
-                    exit 1
-                  fi
+      # Render + post-scaffold EXACTLY as the aspect-starters publish job does
+      # (publish-starters.yaml), so the tree the check steps below see is
+      # byte-for-byte what a published starter ships. The check steps then run
+      # the SAME tasks the stamped CI (template/.github/workflows/ci.yaml) runs
+      # downstream — so a green run here means the starter repos are green too.
+      - name: Render + post-scaffold (repin, normalize)
+        run: |
+          aspect render-preset --preset='${{ matrix.preset }}' --out="$RUNNER_TEMP/out" --name=my_project
+          echo "WS=$RUNNER_TEMP/out" >> "$GITHUB_ENV"
+          cd "$RUNNER_TEMP/out"
+          # repin — the template ships placeholder lockfiles; regenerate them.
+          if [ -x ./tools/repin ]; then ./tools/repin; fi
+          bazel mod deps --lockfile_mode=update || true
+          # git init FIRST — gazelle/format need a git tree to enumerate + apply.
+          git init -q
+          git add -A
+          git -c user.email=ci@aspect.build -c user.name=CI commit -q -m "rendered ${{ matrix.preset }}"
+          # Normalize (buildifier + gazelle + format), mirroring the publish job.
+          bazel run --run_in_cwd @buildifier_prebuilt//buildifier -- -r . || true
+          aspect gazelle --task:name gazelle-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false --check-only=false || true
+          case "${{ matrix.preset }}" in
+            minimal|scala|ruby) ;;
+            *) aspect format --task:name format-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false --scope=all || true ;;
+          esac
+          git add -A
+          git -c user.email=ci@aspect.build -c user.name=CI commit -q --amend --no-edit || true
 
-            - name: User Stories
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              # see https://gist.github.com/bwoods/1c25cb7723a06a076c2152a2781d4d49#running-the-script
-              shell: sh
-              run: $GITHUB_WORKSPACE/user_stories/${{ matrix.preset}}.md || exit 1
+      # Assert the multitool-pinned aspect-launcher matches the version in
+      # tools.lock.json. The launcher prints `aspect launcher <version>` for
+      # `--version`; we derive the expected version from this repo's lockfile so
+      # the check stays in sync with future bumps. Run the launcher target via
+      # Bazel in the rendered workspace so we exercise the exact pinned binary.
+      - name: Assert aspect-launcher version
+        working-directory: ${{ env.WS }}
+        run: |
+          expected="$(
+            grep -o 'aspect-cli/releases/download/v[^/]*/' "$GITHUB_WORKSPACE/template/tools/tools.lock.json" \
+              | head -n1 | sed -E 's#.*/download/v##; s#/$##'
+          )"
+          echo "Expected launcher version: $expected"
+          actual="$(bazel run @multitool//tools/aspect -- --version)"
+          echo "Actual: $actual"
+          if [ "$actual" != "aspect launcher $expected" ]; then
+            echo "::error::aspect-launcher version mismatch: expected 'aspect launcher $expected', got '$actual'" >&2
+            exit 1
+          fi
 
-            - name: Python test that fails
-              continue-on-error: true
-              run: bazel test //app:app_test
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              if: "${{ matrix.preset == 'py' }}"
+      # Statically validate the generated GitHub Actions workflow itself
+      # (syntax, expressions, permissions). GitHub can't run a rendered workflow
+      # as a nested CI run, so actionlint is how we gate the YAML pre-merge; the
+      # aspect-starters publish job is the live end-to-end run post-merge.
+      - name: Lint generated workflows (actionlint)
+        working-directory: ${{ env.WS }}
+        env:
+          ACTIONLINT_VERSION: 1.7.7
+        run: |
+          case "$(uname -s)" in
+            Darwin) os=darwin ;;
+            *)      os=linux ;;
+          esac
+          case "$(uname -m)" in
+            arm64|aarch64) arch=arm64 ;;
+            *)             arch=amd64 ;;
+          esac
+          curl -fsSL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_${os}_${arch}.tar.gz"
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color .github/workflows/*.yaml
 
-            - name: Check failure is expected
-              working-directory: "${{ steps.scaffold.outputs.dir }}"
-              if: "${{ matrix.preset == 'py' }}"
-              run: grep "FAILED app/app_test.py::test_bad - assert 1 == 2" $(bazel info bazel-testlogs)/app/app_test/test.log
+      # No separate build step: `aspect test` builds everything it needs.
+      - name: Test
+        working-directory: ${{ env.WS }}
+        run: aspect test --task:name test-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false -- //...
 
-    # For branch protection settings, this job provides a "stable" name that can be used to gate PR merges
-    # on "all matrix jobs were successful".
-    conclusion:
-      needs: test
-      runs-on: ubuntu-latest
-      if: always()
-      steps:
-        - uses: technote-space/workflow-conclusion-action@45ce8e0eb155657ab8ccf346ade734257fd196a5 # v3.0.3
+      # The steps below run the SAME tasks the generated project's CI
+      # (template/.github/workflows/ci.yaml) runs, with the same per-preset
+      # gating, so this matrix is a faithful proxy for the starter repos. All
+      # use --scope=all: these run in the rendered project ($WS), but a task's
+      # PR-diff detection would otherwise key off THIS repo's changed files.
 
-        # Note: possible conclusion values:
-        # https://github.com/technote-space/workflow-conclusion-action/blob/main/src/constant.ts
-        - name: report success
-          if: ${{ env.WORKFLOW_CONCLUSION == 'success' }}
-          working-directory: /tmp
-          run: echo ${{ env.WORKFLOW_CONCLUSION }} && exit 0
+      # buildifier always runs (Starlark; only needs buildifier_prebuilt).
+      - name: Buildifier
+        working-directory: ${{ env.WS }}
+        run: aspect buildifier --task:name buildifier-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false --scope=all
 
-        - name: report failure
-          if: ${{ env.WORKFLOW_CONCLUSION == 'failure' }}
-          working-directory: /tmp
-          run: echo ${{ env.WORKFLOW_CONCLUSION }} && exit 1
+      # gazelle runs for every preset (the stamped CI always has a gazelle job).
+      - name: Gazelle (no changes expected)
+        working-directory: ${{ env.WS }}
+        run: aspect gazelle --task:name gazelle-check-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false
+
+      # Lint runs only for presets with a wired rules_lint aspect (matches the
+      # stamped CI's lint-job gating and .aspect/config.axl's aspects list).
+      # go/scala have no linter; rust lints via clippy (aspect_rules_lint_rust).
+      #
+      # The clang-tidy aspect (cpp, and cpp-in-kitchen-sink) is skipped on macOS:
+      # rules_lint's _update_flag strips absolute `-isystem` paths as if they were
+      # MSVC `/flags`, so the macOS SDK libc++ include is dropped and clang-tidy
+      # can't find <string>/<iostream>. Build/test/format still run on macOS for
+      # cpp. Re-enable once https://github.com/aspect-build/rules_lint/issues/924
+      # ships (PR #779).
+      - name: Lint
+        if: ${{ !contains(fromJSON('["minimal","go","scala","swift","copybara-go","copybara-oneway"]'), matrix.preset) && !(matrix.os == 'macos-latest' && contains(fromJSON('["cpp","kitchen-sink"]'), matrix.preset)) }}
+        working-directory: ${{ env.WS }}
+        run: aspect lint --task:name lint-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false -- //...
+
+      # format runs for every preset with a wired source formatter. scala/ruby
+      # have none; minimal has no languages (buildifier covers its Starlark).
+      - name: Format (no changes expected)
+        if: ${{ !contains(fromJSON('["minimal","scala","ruby","swift"]'), matrix.preset) }}
+        working-directory: ${{ env.WS }}
+        run: aspect format --task:name format-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false --scope=all
+
+      # delivery runs for presets whose stamped CI has a delivery job (oci/stamp).
+      # --track-state=false --mode=always mirrors the stamped delivery job.
+      - name: Delivery
+        if: ${{ contains(fromJSON('["go","kitchen-sink"]'), matrix.preset) }}
+        working-directory: ${{ env.WS }}
+        run: aspect delivery --task:name delivery-${{ matrix.preset }}-${{ matrix.os }} --github-status-comments:enabled=false --github-status-checks:enabled=false --track-state=false --mode=always
+
+      # Execute the preset's user story — an executable-Markdown tutorial that
+      # builds/tests/extends the generated project. Run with `sh` (the ~~~ alias
+      # trick needs POSIX-sh alias expansion; bash non-interactive won't expand
+      # it). See https://gist.github.com/bwoods/1c25cb7723a06a076c2152a2781d4d49
+      - name: User story
+        working-directory: ${{ env.WS }}
+        run: sh "$GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md"
+
+  # Stable name for branch protection: "all matrix legs passed".
+  conclusion:
+    needs: preset
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Report
+        run: |
+          if [ "${{ contains(needs.preset.result, 'failure') || needs.preset.result == 'failure' }}" = "true" ]; then
+            echo "one or more presets failed" && exit 1
+          fi
+          echo "all presets passed"
