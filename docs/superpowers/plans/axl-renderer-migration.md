@@ -34,8 +34,8 @@ A preset is "done" when render → tidy(no-op) → build/test/story all pass.
 
 ## Phases
 
-- [ ] **Phase 0 — Foundation.** Vendor upstream engine onto branch (`render.axl`, `dev.axl`, `template-config.json`, `template/`, `MODULE.aspect`, upstream `user_stories/`). Remove old engine (`scaffold.yaml`, `init.axl`, `hooks/post_scaffold`, `{{ .ProjectSnake }}/`). Verify baseline renders (`minimal`, `py`, `go`, `kitchen-sink`) build/test/tidy-clean unmodified. Commit.
-- [ ] **Phase 1 — Build-config parity (G).** Reconcile `template/MODULE.bazel` + `.bazelrc` + `template-config.json` with our needed deltas (macOS LLVM darwin fix; any dep floors upstream lacks). Drop rubocop patch. Verify all presets.
+- [x] **Phase 0 — Foundation.** DONE (commit 4c84a97). Engine vendored, old engine removed; minimal/py/go/kitchen-sink render, minimal+py build & test green.
+- [x] **Phase 1 — Build-config parity (G).** DONE — **no-op**. Upstream's base already subsumes ALL of our Bazel-upgrade work, and improves on it: Bazel 9.1.1 ✓; `aspect_rules_lint` 2.7.x with rubocop SARIF fixed → **our rubocop patch + single_version_override are obsolete, dropped with the old tree** ✓; rules_go/rules_nodejs CcInfo floors handled by the modern base ✓; **LLVM 19.1.7 across all platforms** (toolchains_llvm 1.8.0, rules_cc 0.2.18) — strictly better than our darwin-arm64→17.0.6 fix, and **cpp builds on Apple Silicon locally (157 actions, exit 0)** ✓; Rust via rules_rs + aspect_rules_lint_rust (the published clippy module we wanted) ✓. Nothing to port.
 - [ ] **Phase 2 — Independent generated-tree features (low-risk, parallelizable):**
   - L: AGENTS.md (gen-tree + root) + copilot/gemini wrappers.
   - B: `//:tidy` aggregator + Tidy Check gate + CI tidy-clean assertion.

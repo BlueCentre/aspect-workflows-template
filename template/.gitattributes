@@ -1,6 +1,10 @@
 # List generated files
 # - prevents GitHub from showing deltas during code review
 # - informs the rules_lint formatter not to apply formatting rules
+
+# Vendored AI-assistant wrappers: thin npx shims, kept verbatim (not formatted).
+tools/scripts/copilot  linguist-generated=true
+tools/scripts/gemini   linguist-generated=true
 {% if java %}
 maven_install.json     linguist-generated=true
 {% endif %}

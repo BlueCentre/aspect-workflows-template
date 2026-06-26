@@ -488,9 +488,11 @@
     "hello/shell/*.sh"
   ],
   "executable": [
-    "tools/repin",
     "bazel/workspace_status.sh",
     "hello/shell/hello.sh",
-    "hello/shell/hello_test.sh"
+    "hello/shell/hello_test.sh",
+    "tools/repin",
+    "tools/scripts/copilot",
+    "tools/scripts/gemini"
   ]
 }
