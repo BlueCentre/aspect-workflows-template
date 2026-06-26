@@ -15,7 +15,11 @@
     "proto",
     "stamp",
     "oci",
-    "swift"
+    "swift",
+    "copybara",
+    "copybara_one_way",
+    "copybara_pulumi_auth",
+    "copybara_bidi"
   ],
   "presets": {
     "minimal": {
@@ -35,7 +39,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "shell": {
       "javascript": false,
@@ -54,7 +63,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "go": {
       "javascript": false,
@@ -73,7 +87,12 @@
       "oci": true,
       "platforms": true,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "js": {
       "javascript": true,
@@ -92,7 +111,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "py": {
       "javascript": false,
@@ -111,7 +135,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "java": {
       "javascript": false,
@@ -130,7 +159,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "kotlin": {
       "javascript": false,
@@ -149,7 +183,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "cpp": {
       "javascript": false,
@@ -168,7 +207,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "rust": {
       "javascript": false,
@@ -187,7 +231,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "ruby": {
       "javascript": false,
@@ -206,7 +255,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "scala": {
       "javascript": false,
@@ -225,7 +279,12 @@
       "oci": false,
       "platforms": false,
       "license": true,
-      "swift": false
+      "swift": false,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "kitchen-sink": {
       "javascript": true,
@@ -244,7 +303,12 @@
       "oci": true,
       "platforms": true,
       "license": true,
-      "swift": true
+      "swift": true,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
     },
     "swift": {
       "javascript": false,
@@ -263,7 +327,64 @@
       "platforms": false,
       "swift": true,
       "lint": true,
-      "license": true
+      "license": true,
+      "copybara": false,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [],
+      "copybara_bidi": false
+    },
+    "copybara-go": {
+      "javascript": false,
+      "python": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": false,
+      "go": true,
+      "lint": true,
+      "license": true,
+      "copybara": true,
+      "copybara_one_way": false,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [
+        "example-component"
+      ],
+      "copybara_bidi": true
+    },
+    "copybara-oneway": {
+      "javascript": false,
+      "python": false,
+      "java": false,
+      "scala": false,
+      "kotlin": false,
+      "cpp": false,
+      "rust": false,
+      "ruby": false,
+      "shell": false,
+      "proto": false,
+      "stamp": false,
+      "oci": false,
+      "platforms": false,
+      "swift": false,
+      "go": true,
+      "lint": true,
+      "license": true,
+      "copybara": true,
+      "copybara_one_way": true,
+      "copybara_pulumi_auth": false,
+      "copybara_components": [
+        "example-component"
+      ],
+      "copybara_bidi": false
     }
   },
   "rules": [
@@ -513,6 +634,46 @@
         "swift/**",
         "hello/swift/**"
       ]
+    },
+    {
+      "flag": "copybara",
+      "globs": [
+        "tools/copybara/copy.bara.sky",
+        "tools/copybara/sync/**",
+        "tools/copybara/drift_check/**",
+        "tools/copybara/conflict_precheck/**",
+        "tools/copybara/cla/**",
+        "tools/copybara/sync-to-monorepo.yaml",
+        ".github/workflows/_copybara-export.yaml"
+      ]
+    },
+    {
+      "flag": "copybara_bidi",
+      "globs": [
+        ".github/workflows/_copybara-import.yaml",
+        ".github/workflows/copybara-drift-check.yaml",
+        "docs/copybara-bidi-sync.md"
+      ]
+    },
+    {
+      "all": [
+        "copybara",
+        "copybara_one_way"
+      ],
+      "globs": [
+        ".github/workflows/copybara-import-pr.yaml",
+        ".github/workflows/copybara-import-pr-close.yaml",
+        "docs/copybara-oneway-sync.md"
+      ]
+    },
+    {
+      "all": [
+        "copybara",
+        "copybara_pulumi_auth"
+      ],
+      "globs": [
+        "infrastructure/pulumi/copybara_sync/**"
+      ]
     }
   ],
   "no_render": [
@@ -545,7 +706,21 @@
     ".devcontainer/Dockerfile.kitchen-sink",
     ".devcontainer/kind-config.yaml",
     ".devcontainer/README.md",
-    "tools/scripts/kind-cluster.sh"
+    "tools/scripts/kind-cluster.sh",
+    ".github/workflows/_copybara-export.yaml",
+    ".github/workflows/_copybara-import.yaml",
+    ".github/workflows/copybara-drift-check.yaml",
+    "tools/copybara/cla/cla.yml",
+    "tools/copybara/sync-to-monorepo.yaml",
+    "tools/copybara/sync/main.go",
+    "tools/copybara/sync/main_test.go",
+    "tools/copybara/drift_check/main.go",
+    "tools/copybara/drift_check/main_test.go",
+    "tools/copybara/conflict_precheck/main.go",
+    "tools/copybara/conflict_precheck/main_test.go",
+    "docs/copybara-bidi-sync.md",
+    "docs/copybara-oneway-sync.md",
+    "infrastructure/pulumi/copybara_sync/BUILD"
   ],
   "executable": [
     "bazel/workspace_status.sh",

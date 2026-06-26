@@ -1,0 +1,69 @@
+# tools/copybara/sync-to-monorepo.yaml
+#
+# REFERENCE DISPATCH WORKFLOW — install this file in EACH standalone repo as
+# .github/workflows/sync-to-monorepo.yaml (one copy per standalone, customized
+# for that component). Do NOT commit this file to the monorepo itself.
+#
+# On every push to the standalone's main branch, this workflow mints a
+# short-lived token from a GitHub App and fires a repository_dispatch into the
+# monorepo, which triggers the per-component copybara-import-<component>.yaml
+# caller workflow there.
+#
+# This is the ONLY Copybara-related machinery the standalone repo carries;
+# all sync logic (Copybara config + reusable workflows) lives in the monorepo.
+#
+# HOW TO CUSTOMIZE (replace every <placeholder> below):
+#   <COMP>_DISPATCH_APP_ID         — secret name holding the GitHub App ID
+#   <COMP>_DISPATCH_APP_PRIVATE_KEY — secret name holding the App private key
+#   <your-org>/<your-monorepo>     — the monorepo repository slug
+#   <component>-import             — the repository_dispatch event_type that
+#                                    triggers copybara-import-<component>.yaml
+#
+# The GitHub App must be installed on the MONOREPO (not the standalone) with
+# Contents: Read & write permission so it can trigger repository_dispatch there.
+# See docs/copybara-bidi-sync.md §6 for provisioning details.
+#
+# IMPORTANT: if the standalone enforces license headers, add the appropriate
+# header to this file before pushing it (addlicense doesn't run on the monorepo
+# for this standalone-only file). See docs/copybara-bidi-sync.md §12.
+
+name: Notify monorepo of changes
+
+on:
+    push:
+        branches: [main]
+
+# The workflow's own GITHUB_TOKEN is unused; the dispatch is authenticated by
+# the short-lived GitHub App installation token.
+permissions: {}
+
+concurrency:
+    group: dispatch-to-monorepo
+    cancel-in-progress: false
+
+jobs:
+    dispatch:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Mint dispatch token from GitHub App
+              id: app-token
+              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+              with:
+                  # TODO: replace <COMP> with the UPPER_SNAKE_CASE component name,
+                  # e.g. MY_LIB for a component named "my-lib".
+                  app-id: ${{ secrets.<COMP>_DISPATCH_APP_ID }}
+                  private-key: ${{ secrets.<COMP>_DISPATCH_APP_PRIVATE_KEY }}
+                  # TODO: replace with your GitHub organisation name.
+                  owner: <your-org>
+                  # TODO: replace with the monorepo name.
+                  repositories: <your-monorepo>
+
+            - name: repository_dispatch to monorepo
+              env:
+                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
+              run: |
+                  # TODO: replace <component>-import with the event_type that
+                  # triggers copybara-import-<component>.yaml in the monorepo,
+                  # e.g. "my-lib-import" for a component named "my-lib".
+                  gh api -X POST repos/<your-org>/<your-monorepo>/dispatches \
+                    -f event_type=<component>-import
