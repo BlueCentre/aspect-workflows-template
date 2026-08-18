@@ -41,3 +41,15 @@ spec:
   lifecycle: production
   owner: platform-team
   templatesGeneratedKind: repository
+---
+# The Component above declares `system: platform-tool`. Backstage never creates
+# a System implicitly, so without this the reference dangles: the link 404s and
+# the component drops out of every system-filtered view.
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: platform-tool
+  title: Platform Tooling
+  description: Generators and tooling that produce and maintain other repositories
+spec:
+  owner: platform-team

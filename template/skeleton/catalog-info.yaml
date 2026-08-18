@@ -63,3 +63,14 @@ spec:
   lifecycle: experimental
   owner: ${{ '{{' }} values.owner {{ '}}' }}
   system: ${{ '{{' }} values.name {{ '}}' }}
+---
+# The Component above declares `system: <project name>`. Backstage never creates
+# a System implicitly, so without this every scaffolded project ships a dangling
+# system reference. Declared in the same file so catalog:register picks up both.
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{ '{{' }} values.name {{ '}}' }}
+  description: ${{ '{{' }} values.description {{ '}}' }}
+spec:
+  owner: ${{ '{{' }} values.owner {{ '}}' }}
