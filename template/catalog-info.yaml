@@ -173,6 +173,6 @@ metadata:
 spec:
   type: service
   lifecycle: experimental
-  owner: team-platform
+  owner: platform-team
   system: software-foundation
 {%- endif %}

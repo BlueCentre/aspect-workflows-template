@@ -39,5 +39,5 @@ spec:
   type: service
   system: platform-tool
   lifecycle: production
-  owner: team-platform
+  owner: platform-team
   templatesGeneratedKind: repository
