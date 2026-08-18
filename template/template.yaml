@@ -3,11 +3,13 @@
 {%- if python %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if go %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if java %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if scala %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if kotlin %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if cpp %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if rust %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if swift %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- if shell %}{% set ns.count = ns.count + 1 %}{% endif -%}
+{%- if ruby %}{% set ns.count = ns.count + 1 %}{% endif -%}
 {%- set kitchen_sink = ns.count >= 8 -%}
 {%- set minimal = ns.count == 0 -%}
 apiVersion: scaffolder.backstage.io/v1beta3
@@ -37,6 +39,10 @@ metadata:
   name: bazel-java
   title: Bazel Java Monorepo Template
   description: Bazel monorepo for Java projects
+{%- elif scala %}
+  name: bazel-scala
+  title: Bazel Scala Monorepo Template
+  description: Bazel monorepo for Scala projects
 {%- elif kotlin %}
   name: bazel-kotlin
   title: Bazel Kotlin Monorepo Template
@@ -57,6 +63,10 @@ metadata:
   name: bazel-shell
   title: Bazel Shell Script Monorepo Template
   description: Bazel monorepo for Shell script projects
+{%- elif ruby %}
+  name: bazel-ruby
+  title: Bazel Ruby Monorepo Template
+  description: Bazel monorepo for Ruby projects
 {%- else %}
   name: unknown
   title: Unknown
