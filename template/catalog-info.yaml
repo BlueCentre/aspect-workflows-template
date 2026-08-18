@@ -173,6 +173,18 @@ metadata:
 spec:
   type: service
   lifecycle: experimental
-  owner: team-platform
+  owner: platform-team
   system: software-foundation
+---
+# The Component above declares `system: software-foundation`. Backstage never
+# creates a System implicitly, so without this the reference dangles wherever a
+# directly-generated repo is registered.
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: software-foundation
+  title: Software Foundation
+  description: Bazel monorepos generated from the Aspect Workflows template
+spec:
+  owner: platform-team
 {%- endif %}

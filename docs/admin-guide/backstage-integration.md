@@ -196,7 +196,7 @@ metadata:
   description: Bazel project using Aspect Workflows
 spec:
   type: service
-  owner: team-platform
+  owner: platform-team
 ```
 
 ### Workflow 2: Backstage Template Generation
