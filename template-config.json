@@ -1083,7 +1083,8 @@
       "globs": [
         "docs/dependency-versioning/swift.md"
       ]
-    }
+    },
+    { "flag": "app_template", "globs": ["app/**"] }
   ],
   "no_render": [
     "LICENSE",

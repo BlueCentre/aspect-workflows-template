@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "{{ project_kebab }}_lib",
+    srcs = ["main.go"],
+    importpath = "example.com/{{ project_snake }}/app/{{ project_kebab }}",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "{{ project_kebab }}",
+    embed = [":{{ project_kebab }}_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "{{ project_kebab }}_test",
+    srcs = ["main_test.go"],
+    embed = [":{{ project_kebab }}_lib"],
+)
