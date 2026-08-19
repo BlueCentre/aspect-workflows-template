@@ -32,7 +32,7 @@ def validate_app_config(config):
         return ["template-config.json has no {!r} section".format(APP_KEY)]
     app = config[APP_KEY]
 
-    _require_keys("app", app, ["languages", "concerns", "deploy_targets", "presets", "rules", "no_render", "executable"], problems)
+    _require_keys("app", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable"], problems)
     if problems:
         return problems
 
@@ -71,6 +71,14 @@ def validate_app_config(config):
     for name in sorted(languages.keys()):
         _require_keys("language {!r}".format(name), languages[name], ["label", "template_dir"], problems)
 
+    # HTTP frameworks: each language's default must be one of its own options.
+    for lang in sorted(app["http_frameworks"].keys()):
+        fw = app["http_frameworks"][lang]
+        _require_keys("http_frameworks {!r}".format(lang), fw, ["options", "default"], problems)
+        if "options" in fw and "default" in fw:
+            if fw["default"] not in fw["options"]:
+                problems.append("http_frameworks {!r}: default {!r} is not in options {}".format(lang, fw["default"], fw["options"]))
+
     # Deploy targets: the default provider must be one of the offered providers.
     for name in sorted(app["deploy_targets"].keys()):
         target = app["deploy_targets"][name]
@@ -95,3 +103,45 @@ def validate_app_config(config):
                     problems.append("preset {!r}: concern {!r} requires {!r}, which the preset omits".format(name, c, req))
 
     return problems
+
+def resolve_concerns(app, language, concerns):
+    """Expand `concerns` under the requires closure. Fails on anything unknown.
+
+    Returns a sorted list. Starlark has no recursion, so the closure is computed
+    by bounded relaxation -- the same shape render.axl:_walk uses for its walk.
+    """
+    known = app["concerns"]
+    if language not in app["languages"]:
+        fail("unknown language {!r}; known: {}".format(language, ", ".join(sorted(app["languages"].keys()))))
+    selected = {}
+    for c in concerns:
+        if c not in known:
+            fail("unknown concern {!r}; known: {}".format(c, ", ".join(sorted(known.keys()))))
+        selected[c] = True
+    for _ in range(100):
+        added = False
+        for c in sorted(selected.keys()):
+            for req in known[c].get("requires", []):
+                if req not in selected:
+                    selected[req] = True
+                    added = True
+        if not added:
+            break
+    for c in sorted(selected.keys()):
+        applies = known[c].get("appliesTo", [])
+        if applies and language not in applies:
+            fail("concern {!r} does not apply to language {!r}".format(c, language))
+    return sorted(selected.keys())
+
+def app_flags(app, language, concerns, http_framework, deploy_target, db_provider):
+    """Build the flag dict handed to render(). Every concern is a boolean; the
+    enumerated dimensions (framework, target, provider) are passed as their own
+    keys so templates can branch on the chosen value."""
+    flags = {}
+    for c in sorted(app["concerns"].keys()):
+        flags[c] = c in concerns
+    flags[language] = True
+    flags["http_framework"] = http_framework
+    flags["deploy_target"] = deploy_target
+    flags["db_provider"] = db_provider
+    return flags

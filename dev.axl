@@ -8,7 +8,7 @@ here proves the template renders. It's also what the CI matrix and the
 """
 
 load("./render.axl", "load_config", "preset_flags", "render")
-load("./app.axl", "validate_app_config")
+load("./app.axl", "app_config", "app_flags", "resolve_concerns", "validate_app_config")
 
 # Backstage presets ship a software-template (template.yaml) whose `skeleton/`
 # must contain a concrete copy of the rendered project so Backstage's scaffolder
@@ -89,4 +89,76 @@ check_metadata = task(
     summary = "Validate the application metadata contract in template-config.json",
     implementation = _check_metadata_impl,
     args = {},
+)
+
+def _render_app_impl(ctx):
+    repo_dir = ctx.std.env.current_dir()
+    config = load_config(ctx, repo_dir)
+
+    problems = validate_app_config(config)
+    if problems:
+        for p in problems:
+            ctx.std.io.stdout.write("  - {}\n".format(p))
+        fail("application metadata contract is invalid; run `aspect check-metadata`")
+    app = app_config(config)
+
+    language = ctx.args.language
+    requested = [c for c in ctx.args.concerns.split(",") if c]
+    concerns = resolve_concerns(app, language, requested)
+
+    target_name = ctx.args.deploy_target
+    if target_name not in app["deploy_targets"]:
+        fail("unknown deploy target {!r}; known: {}".format(target_name, ", ".join(sorted(app["deploy_targets"].keys()))))
+    target = app["deploy_targets"][target_name]
+
+    db_provider = ctx.args.db_provider
+    if db_provider == "":
+        db_provider = target["default_db_provider"]
+    if db_provider not in target["db_providers"]:
+        fail("db provider {!r} is not available on deploy target {!r}; available: {}".format(
+            db_provider, target_name, ", ".join(target["db_providers"])))
+
+    framework = ctx.args.http_framework
+    fw = app.get("http_frameworks", {}).get(language)
+    if fw:
+        if framework == "":
+            framework = fw["default"]
+        if framework not in fw["options"]:
+            fail("http framework {!r} is not available for {!r}; available: {}".format(
+                framework, language, ", ".join(fw["options"])))
+
+    flags = app_flags(app, language, concerns, framework, target_name, db_provider)
+
+    # The app section carries its own rules/no_render/executable because globs are
+    # matched relative to the template_dir passed below, not to template/.
+    app_render_config = {
+        "rules": app["rules"],
+        "no_render": app["no_render"],
+        "executable": app["executable"],
+    }
+    template_dir = repo_dir + "/template/" + app["languages"][language]["template_dir"]
+
+    out = ctx.args.out
+    if ctx.std.fs.exists(out):
+        ctx.std.fs.remove_dir_all(out)
+    ctx.std.fs.create_dir_all(out)
+
+    written = render(ctx, app_render_config, template_dir, out, ctx.args.name, flags)
+    ctx.std.io.stdout.write("rendered {} app {!r} [{}] -> {} ({} files)\n".format(
+        language, ctx.args.name, ", ".join(concerns) if concerns else "no concerns", out, len(written)))
+    return 0
+
+render_app = task(
+    kind = "render-app",
+    summary = "Render one application into an output directory",
+    implementation = _render_app_impl,
+    args = {
+        "language": args.string(required = True, description = "Language (see template-config.json app.languages)"),
+        "name": args.string(required = True, description = "Application name (snake_case)"),
+        "out": args.string(required = True, description = "Output directory (cleared if it exists)"),
+        "concerns": args.string(default = "", description = "Comma-separated concerns; requires are added automatically"),
+        "deploy_target": args.string(default = "homelab", description = "Deploy target (see app.deploy_targets)"),
+        "db_provider": args.string(default = "", description = "Database provider; defaults to the target's default"),
+        "http_framework": args.string(default = "", description = "HTTP framework; defaults to the language's default"),
+    },
 )

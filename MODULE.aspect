@@ -1,2 +1,3 @@
 use_task("dev.axl", "render_preset")
 use_task("dev.axl", "check_metadata")
+use_task("dev.axl", "render_app")
