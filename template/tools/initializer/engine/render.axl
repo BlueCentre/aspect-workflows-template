@@ -170,10 +170,13 @@ def _output_rel(suffix, rel):
     `{% ... %}` is claimed by every Starlark tool in the host repo:
 
       * bazel treats the directory as a package and `bazel query //...` exits 7;
-      * buildifier (8.5.1) walks the FILESYSTEM, so it parses the file and exits
-        1 -- and it does not read `.bazelignore`, verified directly, so the
-        starter's `.bazelignore` entry fixes bazel and gazelle but NOT
-        `aspect buildifier --scope=all`, which every preset's CI runs.
+      * buildifier (8.5.1) walks the FILESYSTEM by name and does not read
+        `.bazelignore`, verified directly -- so the starter's `.bazelignore`
+        entry fixes bazel and gazelle but not buildifier, which reaches this
+        file either way: the starter's own CI runs bare `aspect buildifier`,
+        whose default scope degrades to a whole-tree walk when merge-base
+        detection fails, and AWT's own CI reaches it via its `--scope=all`
+        preset matrix.
 
     The same argument applies to any host tool that claims a name: gofmt on a
     `main.go` (inert today because that template's placeholders sit inside a

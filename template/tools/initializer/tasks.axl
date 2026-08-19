@@ -290,7 +290,7 @@ render_app = task(
         "name": args.string(required = True, description = "Application name (snake_case)"),
         "out": args.string(required = True, description = "Output directory (cleared if it exists)"),
         "concerns": args.string(default = "", description = "Comma-separated concerns; requires are added automatically"),
-        "deploy_target": args.string(default = "homelab", description = "Deploy target (see app.deploy_targets)"),
+        "deploy_target": args.string(default = "homelab", description = "Deploy target (see tools/initializer/config.json deploy_targets)"),
         "db_provider": args.string(default = "", description = "Database provider; defaults to the target's default"),
         "http_framework": args.string(default = "", description = "HTTP framework; defaults to the language's default"),
         "module_path": args.string(default = "", description = "Host Go module path; defaults to the module declared by the nearest go.mod at or above --out"),

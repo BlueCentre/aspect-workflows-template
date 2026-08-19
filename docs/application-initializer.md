@@ -24,6 +24,13 @@ initializer:
 Optional: `--concerns` (comma-separated; dependencies are added automatically),
 `--deploy-target` (`homelab` or `cloudrun`), `--db-provider`, `--http-framework`.
 
+**Run it from the repo root — this is a requirement, not just how the example
+above happens to `cd`.** `_base(ctx)` locates the engine by probing
+`ctx.std.env.current_dir()` for `template/tools/initializer` or
+`tools/initializer`; from any other directory neither exists there and
+`render-app` fails with "Run this from the repo root," not a guess at the
+correct tree.
+
 The same repo also carries the contract checks, for anyone extending its copy of
 the engine:
 
@@ -76,6 +83,13 @@ Note where the command runs: **inside the clone** (that is where an engine
 exists at all — outside a repo carrying `tools/initializer/` there is none to
 run) while `--out` points outside it.
 
+**"Does this repo have an engine?"** is a question a frontend must answer
+*before* cloning-and-running, e.g. to decide whether to offer app stamping at
+all. The concrete predicate: `tools/initializer/config.json` exists **and**
+`MODULE.aspect` registers all three tasks (`render_app`, `check_metadata`,
+`check_renders`) via `use_task("tools/initializer/tasks.axl", ...)`. Either
+alone is not enough — a repo mid-migration could carry one without the other.
+
 | flag | meaning | default |
 |---|---|---|
 | `--module-path` | the host monorepo's Go module path | the `module` line of the nearest `go.mod` at or above `--out` |
@@ -123,8 +137,9 @@ contract's `template_suffix` key; `render.axl:_output_rel`).
 
 **Why:** a template tree that ships inside a *live repo* cannot name its files
 after its output. A jinja file called `BUILD.bazel` is claimed there by bazel,
-buildifier, gofmt and Backstage discovery. `.bazelignore` (which the engine also
-ships) fixes bazel and gazelle — but buildifier walks the *filesystem* and does
+buildifier, gofmt and Backstage discovery. `.bazelignore` (shipped by *repo
+stamping*, from `template/.bazelignore` -- not part of the engine tree) fixes
+bazel and gazelle — but buildifier walks the *filesystem* and does
 not read `.bazelignore`, so `aspect buildifier` in a starter parses the jinja and
 exits 1 no matter what is ignored. (The starter's own CI runs it with no
 `--scope`; the default `--scope=changed` degrades to a whole-tree walk whenever
@@ -138,7 +153,8 @@ and the first concern that adds a `{% if %}` would break that.
 `executable`) match **output** names, not the on-disk template names — the suffix
 is stripped before matching. Write `BUILD.bazel`, never `BUILD.bazel.tmpl`.
 `check-renders` asserts both halves: that no output still carries the suffix, and
-that the rendered name set is exactly what the language declares.
+that the rendered name set is exactly what `_EXPECTED_OUTPUTS` in `tasks.axl`
+pins for that language.
 
 ### The snapshot trade
 
