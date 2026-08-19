@@ -210,9 +210,193 @@ jobs:
           story="$GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md"
           if [ -f "$story" ]; then sh "$story"; else echo "no user story for ${{ matrix.preset }} — skipping"; fi
 
-  # Stable name for branch protection: "all matrix legs passed".
+  # The application-composition contract and its render smoke, plus the one
+  # property that decides whether the initializer is usable at all: a stamped
+  # application's BUILD file must be exactly what gazelle would generate.
+  #
+  # Ordered cheapest-first. check-metadata and check-renders need no bazel, so
+  # they return a verdict in seconds and fail fast on a bad contract. The
+  # gazelle proof does need bazel -- there is no way to ask gazelle what it
+  # would generate without building it -- so it runs last, and independently of
+  # the preset matrix so a broken contract does not wait on 18 preset builds.
+  app-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Aspect CLI
+        uses: aspect-build/setup-aspect@36c688a9bbb0c84d55d7eca31bf3215e9d265bff # v2026.24.1
+        with:
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+
+      - name: Validate the application metadata contract
+        run: aspect check-metadata
+
+      - name: Render sampled selections and inspect the output
+        run: aspect check-renders
+
+      # The P1 calling convention: a frontend rendering to a scratch directory
+      # has no host on disk, so it supplies every destination property itself.
+      # Nothing else in CI exercises that form -- the fixed-point job below
+      # always stamps INTO a rendered monorepo, where all three are derived.
+      # Assert the two properties the flags exist to control: the import path is
+      # the module path joined with the package path (NOT with --out's location,
+      # which differs here on purpose), and --host-oci=no emits no go_image.
+      - name: Render with the explicit-flags calling convention
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/scratch/convention_probe"
+          aspect render-app --language=go --name=convention_probe --out="$probe" \
+            --module-path=example.com/my_project \
+            --package-path=services/convention_probe \
+            --host-oci=no
+          if ! grep -qF 'importpath = "example.com/my_project/services/convention_probe"' "$probe/BUILD.bazel"; then
+            echo "--module-path + --package-path did not reach importpath:"
+            grep -n importpath "$probe/BUILD.bazel" || echo "  (no importpath at all)"
+            exit 1
+          fi
+          if grep -q go_image "$probe/BUILD.bazel"; then
+            echo "--host-oci=no still emitted a go_image target, which breaks \`bazel build //...\` on a host without bazel/oci:"
+            grep -n go_image "$probe/BUILD.bazel"
+            exit 1
+          fi
+          echo "explicit-flags convention: importpath and host_oci both honoured"
+
+      # Regression guard for a data-loss bug: `--out` is REMOVED before
+      # rendering, so a `--out` that is itself a module root would delete the
+      # go.mod render-app just read. The refusal existed but compared a
+      # normalized module root against the RAW --out argument, so `<root>/` and
+      # `<root>/.` walked straight past it and deleted the host module. Every
+      # spelling of the same directory must refuse, and the host must survive.
+      - name: Refuse to stamp onto a module root, however --out is spelled
+        run: |
+          set -euo pipefail
+          host="$RUNNER_TEMP/hostmod"
+          for spelling in "$host/" "$host/." "$host" "$host/app/../../hostmod"; do
+            rm -rf "$host"
+            mkdir -p "$host"
+            printf 'module example.com/hostmod\n\ngo 1.24\n' > "$host/go.mod"
+            echo "DO-NOT-DELETE" > "$host/KEEPFILE"
+            if aspect render-app --language=go --name=hostmod --out="$spelling" \
+                 --module-path=example.com/x --package-path=app/x --host-oci=no > "$RUNNER_TEMP/refusal.log" 2>&1; then
+              echo "--out='$spelling' was ACCEPTED; it must be refused as a module root."
+              echo "surviving files:"
+              find "$host" -mindepth 1 -maxdepth 1
+              exit 1
+            fi
+            if ! grep -q -- "--out is itself a Go module root" "$RUNNER_TEMP/refusal.log"; then
+              echo "--out='$spelling' failed, but not with the module-root refusal:"
+              cat "$RUNNER_TEMP/refusal.log"
+              exit 1
+            fi
+            if [ ! -f "$host/go.mod" ] || [ "$(cat "$host/KEEPFILE" 2>/dev/null)" != "DO-NOT-DELETE" ]; then
+              echo "--out='$spelling' refused but still damaged the host module."
+              exit 1
+            fi
+            echo "refused and host intact: --out='$spelling'"
+          done
+
+      # Render a monorepo, NORMALIZE it, commit that as the baseline, then stamp
+      # applications in and re-run gazelle. The normalize pass is what isolates
+      # the property under test: a freshly rendered preset is not itself a
+      # gazelle fixed point (jinja conditionals leave blank lines gazelle
+      # reflows), and the preset matrix above already normalizes before it
+      # asserts. Without the baseline commit this job would fail on the host
+      # template's whitespace and never say anything about the application.
+      #
+      # Two hosts, because the stamped BUILD file's shape depends on the
+      # destination rather than on the application. `go` ships bazel/oci and
+      # enables the go_image gazelle extension; `copybara-go` is a Go host with
+      # NO bazel/oci, where emitting a go_image target would load a file that
+      # does not exist and break `bazel build //...` for the whole repo.
+      #
+      # Three stampings per host: `payments` under app/ is the happy path,
+      # `payments_api` proves a snake_case name does not drift into kebab-case
+      # target names, and `services/billing` proves the import path tracks where
+      # the application actually lands.
+      - name: Prove a stamped application is a gazelle fixed point
+        run: |
+          set -euo pipefail
+          for preset in go copybara-go; do
+            mono="$RUNNER_TEMP/mono-$preset"
+            cd "$GITHUB_WORKSPACE"
+            aspect render-preset --preset="$preset" --out="$mono" --name=my_project
+            cd "$mono"
+            # Materialize MODULE.bazel.lock BEFORE anything invokes bazel. The
+            # template ships no lockfile, and the rendered repo's own preset
+            # bazelrc sets `common:ci --lockfile_mode=error` (.aspect/config.axl
+            # adds --config=ci whenever $CI is set), so the very first bazel
+            # call -- building //tools/gazelle:gazelle -- dies with "Missing
+            # checksum for registry file ... not permitted with
+            # --lockfile_mode=error" before gazelle ever runs. The preset matrix
+            # solves this in its own normalize step; this job skipped it.
+            # `|| true` mirrors that step verbatim.
+            #
+            # It runs before the baseline commit, so the lockfile is part of the
+            # baseline rather than an untracked file the post-stamping
+            # `git diff --cached` would report as an application defect.
+            bazel mod deps --lockfile_mode=update || true
+            git init -q
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "rendered"
+            # `|| true`: with --check-only=false gazelle APPLIES its changes and
+            # still exits 1 to report that the files had been out of date, which
+            # a freshly rendered preset always is (jinja conditionals leave
+            # blank lines gazelle reflows). The preset matrix tolerates it the
+            # same way. That tolerance would also swallow a genuine gazelle
+            # failure, so the next line re-runs gazelle in CHECK mode with no
+            # `|| true`: the baseline must be a PROVEN fixed point before a
+            # single application is stamped, or the comparison below means
+            # nothing.
+            aspect gazelle --task:name "gazelle-app-baseline-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --check-only=false || true
+            aspect gazelle --task:name "gazelle-app-baseline-verify-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --severity=fail --check-only=true
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
+
+            cd "$GITHUB_WORKSPACE"
+            aspect render-app --language=go --name=payments     --out="$mono/app/payments"
+            aspect render-app --language=go --name=payments_api --out="$mono/app/payments_api"
+            aspect render-app --language=go --name=billing      --out="$mono/services/billing"
+
+            cd "$mono"
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"
+            aspect gazelle --task:name "gazelle-app-fixedpoint-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --check-only=false
+            # The verdict. `git add -A` first: gazelle CREATES BUILD files as
+            # well as editing them, and a created file is untracked, which plain
+            # `git diff --exit-code` reports as clean. Staging first makes the
+            # comparison HEAD-vs-index, so additions and deletions count too.
+            #
+            # Any difference means gazelle disagreed with what we stamped, which
+            # is the same red the target monorepo's stale-BUILD gate would show
+            # on the first stamping PR. Do NOT silence it with
+            # `# gazelle:ignore` -- that hides exactly what this exists to catch.
+            git add -A
+            git diff --cached --exit-code
+          done
+
+      # A fixed point that does not build is worthless: assert the stamped
+      # applications compile, their tests pass, and (on the oci host) their
+      # images assemble.
+      - name: Build and test the stamped applications
+        run: |
+          set -euo pipefail
+          for preset in go copybara-go; do
+            cd "$RUNNER_TEMP/mono-$preset"
+            bazel test //app/... //services/...
+          done
+
+  # Stable name for branch protection: "every preset leg and the application
+  # contract passed". app-contract is aggregated here rather than required on
+  # its own so branch protection keeps a single check to name.
   conclusion:
-    needs: preset
+    needs: [preset, app-contract]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -221,4 +405,7 @@ jobs:
           if [ "${{ contains(needs.preset.result, 'failure') || needs.preset.result == 'failure' }}" = "true" ]; then
             echo "one or more presets failed" && exit 1
           fi
-          echo "all presets passed"
+          if [ "${{ needs.app-contract.result }}" != "success" ]; then
+            echo "the application contract job did not pass (${{ needs.app-contract.result }})" && exit 1
+          fi
+          echo "all presets and the application contract passed"

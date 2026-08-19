@@ -30,6 +30,7 @@ nav:
       - Template System: contributor-guide/template-system.md
       - Adding Features: contributor-guide/adding-features.md
       - Adding Languages: contributor-guide/adding-languages.md
+      - Application Initializer: application-initializer.md
       - Testing: contributor-guide/testing.md
       - Workflow: contributor-guide/workflow.md
   - Admin Guide:
