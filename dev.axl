@@ -61,6 +61,7 @@ def _impl(ctx):
     name = ctx.args.name
 
     flags = dict(preset_flags(config, preset))
+
     # Mirror `aspect init`'s --license: defaults to "none"; the aspect-starters
     # publish job passes --license=Apache-2.0 to include it.
     flags["license"] = ctx.args.license != "none"

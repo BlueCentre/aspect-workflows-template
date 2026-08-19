@@ -310,6 +310,20 @@ _SMOKE_NAME = "smoke_app"
 #
 # A language with no entry is an error rather than a skip, so adding wave-2
 # languages forces this gate to be extended with them.
+#
+# CAVEAT -- this is a FLAT, unconditional set, so it must be updated for any
+# change to the rendered FILE SET, not merely for a new language. Adding a
+# conditional `rules` entry to the app contract (a file that renders only under
+# some concern, framework or deploy target) changes what a selection emits, and
+# every selection is compared against this one list: the new file makes the
+# sampled selections that DO emit it fail, and its absence goes unnoticed in the
+# ones that do not. Adding a file that always renders means adding it here too.
+#
+# The intended evolution is a flag-aware form -- a per-language `core` set plus
+# `additions` keyed on the predicate that turns each conditional file on --
+# evaluated against the same flags handed to render(). Deliberately not built
+# yet: with `rules` empty for `go` there is nothing conditional to key on, and a
+# predicate evaluator here would be untested machinery guarding a set of one.
 _EXPECTED_OUTPUTS = {
     "go": ["BUILD.bazel", "README.md", "catalog-info.yaml", "main.go", "main_test.go"],
 }

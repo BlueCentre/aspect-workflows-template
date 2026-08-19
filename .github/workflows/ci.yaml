@@ -214,11 +214,19 @@ jobs:
   # property that decides whether the initializer is usable at all: a stamped
   # application's BUILD file must be exactly what gazelle would generate.
   #
-  # Ordered cheapest-first. check-metadata and check-renders need no bazel, so
-  # they return a verdict in seconds and fail fast on a bad contract. The
-  # gazelle proof does need bazel -- there is no way to ask gazelle what it
-  # would generate without building it -- so it runs last, and independently of
-  # the preset matrix so a broken contract does not wait on 18 preset builds.
+  # Since ADR-026 the engine ships INSIDE every starter, so the gated product is
+  # the embedded copy: most steps here render a starter first and then run that
+  # starter's own `tools/initializer/`. The AWT-root steps that remain gate the
+  # source (the development mount), not the product.
+  #
+  # Ordered cheapest-first as far as the mounts allow. The AWT-root
+  # check-metadata/check-renders need no bazel, so they return a verdict in
+  # seconds and fail fast on a bad contract. Everything embedded has to wait for
+  # a host to exist -- there is no engine outside a repo that carries one -- and
+  # the gazelle proof additionally needs bazel, since there is no way to ask
+  # gazelle what it would generate without building it. The whole job runs
+  # independently of the preset matrix so a broken contract does not wait on 18
+  # preset builds.
   app-contract:
     runs-on: ubuntu-latest
     steps:
@@ -229,80 +237,54 @@ jobs:
         with:
           aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
 
-      - name: Validate the application metadata contract
+      # The engine has TWO mount points (ADR-026). It is authored here as
+      # `template/tools/initializer/` and shipped verbatim into every starter as
+      # `tools/initializer/`, so the steps below are ordered by which mount they
+      # gate:
+      #
+      #   1. the AWT root -- the DEVELOPMENT mount. Gates the source: the
+      #      contract is consistent, the sampled selections render, and
+      #      `render-app` still runs in place for whoever is editing the engine.
+      #   2. inside a rendered starter -- the CONSUMPTION mount, which is the
+      #      product. Everything a user ever runs is proven there, from the
+      #      starter's own checkout, using the starter's own copy of the engine.
+      #
+      # Steps 2 come after the hosts are rendered because that is the only place
+      # an embedded engine exists: there is no engine outside a repo that
+      # carries one.
+
+      - name: Validate the application metadata contract (development mount)
         run: aspect check-metadata
 
-      - name: Render sampled selections and inspect the output
+      - name: Render sampled selections and inspect the output (development mount)
         run: aspect check-renders
 
-      # The P1 calling convention: a frontend rendering to a scratch directory
-      # has no host on disk, so it supplies every destination property itself.
-      # Nothing else in CI exercises that form -- the fixed-point job below
-      # always stamps INTO a rendered monorepo, where all three are derived.
-      # Assert the two properties the flags exist to control: the import path is
-      # the module path joined with the package path (NOT with --out's location,
-      # which differs here on purpose), and --host-oci=no emits no go_image.
-      - name: Render with the explicit-flags calling convention
+      # One happy-path render from the AWT root, so the development mount stays
+      # gated: if `template/tools/initializer/` ever stops being runnable in
+      # place, whoever is editing the engine finds out here rather than after a
+      # deliver. Explicit flags because a scratch `--out` has no host above it.
+      - name: Render an application from the AWT root (development mount)
         run: |
           set -euo pipefail
-          probe="$RUNNER_TEMP/scratch/convention_probe"
-          aspect render-app --language=go --name=convention_probe --out="$probe" \
-            --module-path=example.com/my_project \
-            --package-path=services/convention_probe \
+          probe="$RUNNER_TEMP/scratch/dev_mount_probe"
+          aspect render-app --language=go --name=dev_mount_probe --out="$probe" \
+            --module-path=example.com/dev_host \
+            --package-path=app/dev_mount_probe \
             --host-oci=no
-          if ! grep -qF 'importpath = "example.com/my_project/services/convention_probe"' "$probe/BUILD.bazel"; then
-            echo "--module-path + --package-path did not reach importpath:"
-            grep -n importpath "$probe/BUILD.bazel" || echo "  (no importpath at all)"
+          if ! grep -qF 'name = "dev_mount_probe"' "$probe/BUILD.bazel"; then
+            echo "the AWT-root mount rendered a BUILD.bazel with no target named after the app:"
+            cat "$probe/BUILD.bazel"
             exit 1
           fi
-          if grep -q go_image "$probe/BUILD.bazel"; then
-            echo "--host-oci=no still emitted a go_image target, which breaks \`bazel build //...\` on a host without bazel/oci:"
-            grep -n go_image "$probe/BUILD.bazel"
-            exit 1
-          fi
-          echo "explicit-flags convention: importpath and host_oci both honoured"
+          echo "development mount: render-app runs from the AWT root"
 
-      # Regression guard for a data-loss bug: `--out` is REMOVED before
-      # rendering, so a `--out` that is itself a module root would delete the
-      # go.mod render-app just read. The refusal existed but compared a
-      # normalized module root against the RAW --out argument, so `<root>/` and
-      # `<root>/.` walked straight past it and deleted the host module. Every
-      # spelling of the same directory must refuse, and the host must survive.
-      - name: Refuse to stamp onto a module root, however --out is spelled
-        run: |
-          set -euo pipefail
-          host="$RUNNER_TEMP/hostmod"
-          for spelling in "$host/" "$host/." "$host" "$host/app/../../hostmod"; do
-            rm -rf "$host"
-            mkdir -p "$host"
-            printf 'module example.com/hostmod\n\ngo 1.24\n' > "$host/go.mod"
-            echo "DO-NOT-DELETE" > "$host/KEEPFILE"
-            if aspect render-app --language=go --name=hostmod --out="$spelling" \
-                 --module-path=example.com/x --package-path=app/x --host-oci=no > "$RUNNER_TEMP/refusal.log" 2>&1; then
-              echo "--out='$spelling' was ACCEPTED; it must be refused as a module root."
-              echo "surviving files:"
-              find "$host" -mindepth 1 -maxdepth 1
-              exit 1
-            fi
-            if ! grep -q -- "--out is itself a Go module root" "$RUNNER_TEMP/refusal.log"; then
-              echo "--out='$spelling' failed, but not with the module-root refusal:"
-              cat "$RUNNER_TEMP/refusal.log"
-              exit 1
-            fi
-            if [ ! -f "$host/go.mod" ] || [ "$(cat "$host/KEEPFILE" 2>/dev/null)" != "DO-NOT-DELETE" ]; then
-              echo "--out='$spelling' refused but still damaged the host module."
-              exit 1
-            fi
-            echo "refused and host intact: --out='$spelling'"
-          done
-
-      # Render a monorepo, NORMALIZE it, commit that as the baseline, then stamp
-      # applications in and re-run gazelle. The normalize pass is what isolates
-      # the property under test: a freshly rendered preset is not itself a
-      # gazelle fixed point (jinja conditionals leave blank lines gazelle
-      # reflows), and the preset matrix above already normalizes before it
-      # asserts. Without the baseline commit this job would fail on the host
-      # template's whitespace and never say anything about the application.
+      # Render a monorepo and NORMALIZE it, committing that as the baseline. The
+      # normalize pass is what isolates the property under test: a freshly
+      # rendered preset is not itself a gazelle fixed point (jinja conditionals
+      # leave blank lines gazelle reflows), and the preset matrix above already
+      # normalizes before it asserts. Without the baseline commit the fixed-point
+      # step would fail on the host template's whitespace and never say anything
+      # about the application.
       #
       # Two hosts, because the stamped BUILD file's shape depends on the
       # destination rather than on the application. `go` ships bazel/oci and
@@ -310,11 +292,9 @@ jobs:
       # NO bazel/oci, where emitting a go_image target would load a file that
       # does not exist and break `bazel build //...` for the whole repo.
       #
-      # Three stampings per host: `payments` under app/ is the happy path,
-      # `payments_api` proves a snake_case name does not drift into kebab-case
-      # target names, and `services/billing` proves the import path tracks where
-      # the application actually lands.
-      - name: Prove a stamped application is a gazelle fixed point
+      # These hosts are also what every embedded step below runs INSIDE: each
+      # one carries its own `tools/initializer/`, delivered by this render.
+      - name: Render and normalize the two hosts
         run: |
           set -euo pipefail
           for preset in go copybara-go; do
@@ -356,13 +336,116 @@ jobs:
               --severity=fail --check-only=true
             git add -A
             git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
+          done
 
-            cd "$GITHUB_WORKSPACE"
-            aspect render-app --language=go --name=payments     --out="$mono/app/payments"
-            aspect render-app --language=go --name=payments_api --out="$mono/app/payments_api"
-            aspect render-app --language=go --name=billing      --out="$mono/services/billing"
+      # The same two checks as above, but run from INSIDE a rendered starter --
+      # the mount every user actually has. They are pure AXL (no bazel), so this
+      # costs seconds and proves the delivered `tools/initializer/` is
+      # self-contained: the contract it reads, the app templates it renders and
+      # the tasks file `MODULE.aspect` names all shipped, and `_base()` resolves
+      # the starter mount rather than the template-repo one.
+      #
+      # `--out-dir` is pointed outside the starter on purpose: nothing a check
+      # writes may land in the repo under test, or the fixed-point verdict below
+      # would be comparing against the checks' own scratch output.
+      - name: Run the embedded engine's own checks inside a starter
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mono-go"
+          aspect check-metadata
+          aspect check-renders --out-dir="$RUNNER_TEMP/embedded-check-renders"
 
-            cd "$mono"
+      # Regression guard for a data-loss bug: `--out` is REMOVED before
+      # rendering, so a `--out` that is itself a module root would delete the
+      # go.mod render-app just read. The refusal existed but compared a
+      # normalized module root against the RAW --out argument, so `<root>/` and
+      # `<root>/.` walked straight past it and deleted the host module. Every
+      # spelling of the same directory must refuse, and the host must survive.
+      #
+      # Run embedded: the destructive path is the one users have, and it is the
+      # starter's own copy of the engine that has to refuse.
+      - name: Refuse to stamp onto a module root, however --out is spelled
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mono-go"
+          host="$RUNNER_TEMP/hostmod"
+          for spelling in "$host/" "$host/." "$host" "$host/app/../../hostmod"; do
+            rm -rf "$host"
+            mkdir -p "$host"
+            printf 'module example.com/hostmod\n\ngo 1.24\n' > "$host/go.mod"
+            echo "DO-NOT-DELETE" > "$host/KEEPFILE"
+            if aspect render-app --language=go --name=hostmod --out="$spelling" \
+                 --module-path=example.com/x --package-path=app/x --host-oci=no > "$RUNNER_TEMP/refusal.log" 2>&1; then
+              echo "--out='$spelling' was ACCEPTED; it must be refused as a module root."
+              echo "surviving files:"
+              find "$host" -mindepth 1 -maxdepth 1
+              exit 1
+            fi
+            if ! grep -q -- "--out is itself a Go module root" "$RUNNER_TEMP/refusal.log"; then
+              echo "--out='$spelling' failed, but not with the module-root refusal:"
+              cat "$RUNNER_TEMP/refusal.log"
+              exit 1
+            fi
+            if [ ! -f "$host/go.mod" ] || [ "$(cat "$host/KEEPFILE" 2>/dev/null)" != "DO-NOT-DELETE" ]; then
+              echo "--out='$spelling' refused but still damaged the host module."
+              exit 1
+            fi
+            echo "refused and host intact: --out='$spelling'"
+          done
+
+      # The P1 calling convention, exercised in exactly the shape a frontend
+      # will use it: CLONE THE TARGET REPO, RUN ITS ENGINE, render to a scratch
+      # directory, open a PR. So the working directory is a starter (that is
+      # where an embedded engine exists at all -- outside a repo carrying
+      # `tools/initializer/` there is none to run) while `--out` is OUTSIDE it,
+      # with no go.mod above it, which is what makes every destination property
+      # unobservable and the flags mandatory.
+      #
+      # Nothing else in CI exercises that form -- the fixed-point step below
+      # always stamps INTO the starter, where all three are derived. Assert the
+      # two properties the flags exist to control: the import path is the module
+      # path joined with the package path (NOT with --out's location, which
+      # differs here on purpose, and which is NOT the starter we are standing
+      # in), and --host-oci=no emits no go_image.
+      - name: Render with the explicit-flags calling convention
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mono-go"
+          probe="$RUNNER_TEMP/scratch/convention_probe"
+          aspect render-app --language=go --name=convention_probe --out="$probe" \
+            --module-path=example.com/my_project \
+            --package-path=services/convention_probe \
+            --host-oci=no
+          if ! grep -qF 'importpath = "example.com/my_project/services/convention_probe"' "$probe/BUILD.bazel"; then
+            echo "--module-path + --package-path did not reach importpath:"
+            grep -n importpath "$probe/BUILD.bazel" || echo "  (no importpath at all)"
+            exit 1
+          fi
+          if grep -q go_image "$probe/BUILD.bazel"; then
+            echo "--host-oci=no still emitted a go_image target, which breaks \`bazel build //...\` on a host without bazel/oci:"
+            grep -n go_image "$probe/BUILD.bazel"
+            exit 1
+          fi
+          echo "explicit-flags convention: importpath and host_oci both honoured"
+
+      # The verdict this job exists for, run the way a user runs it: from the
+      # starter's own root, with the starter's own engine, no flags -- every
+      # destination property is derived from the repo the command is standing
+      # in. `--out` is relative for the same reason: that is the documented form.
+      #
+      # Three stampings per host: `payments` under app/ is the happy path,
+      # `payments_api` proves a snake_case name does not drift into kebab-case
+      # target names, and `services/billing` proves the import path tracks where
+      # the application actually lands.
+      - name: Prove a stamped application is a gazelle fixed point
+        run: |
+          set -euo pipefail
+          for preset in go copybara-go; do
+            cd "$RUNNER_TEMP/mono-$preset"
+            aspect render-app --language=go --name=payments     --out=./app/payments
+            aspect render-app --language=go --name=payments_api --out=./app/payments_api
+            aspect render-app --language=go --name=billing      --out=./services/billing
+
             git add -A
             git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"
             aspect gazelle --task:name "gazelle-app-fixedpoint-$preset" \
