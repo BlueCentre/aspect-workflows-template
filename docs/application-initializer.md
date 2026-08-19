@@ -7,14 +7,44 @@ at `docs/superpowers/specs/2026-08-18-universal-initializer-design.md`.
 
 ## Stamping an application
 
-    aspect render-app --language=go --name=payments --out=./app/payments
+    cd <the-monorepo> && aspect render-app --language=go --name=payments --out=./app/payments
 
 Optional: `--concerns` (comma-separated; dependencies are added automatically),
-`--deploy-target` (`homelab` or `cloudrun`), `--db-provider`, `--http-framework`,
-`--module-path`.
+`--deploy-target` (`homelab` or `cloudrun`), `--db-provider`, `--http-framework`.
 
-`--out` must end in a directory named after the application, and `render-app`
-fails if it does not. That is not a style rule — see the next section.
+Two rules `render-app` enforces rather than assumes:
+
+- **`--out` must end in a directory named after the application.** Not a style
+  rule — see the next section.
+- **`--out` must be inside the target monorepo**, or you must describe that
+  monorepo with the flags below. `render-app` reads the destination's `go.mod`;
+  it will not invent one. Stamping onto a directory that is *itself* a module
+  root is refused, because `--out` is cleared before rendering and that would
+  delete the `go.mod` just read.
+
+### Stamping outside the monorepo (the P1 calling convention)
+
+A frontend that renders to a scratch directory and opens a PR against the
+monorepo has no `go.mod` to read, so it must supply every destination property
+itself. There is deliberately **no default** for any of them — a guessed value
+is the exact bug this whole contract exists to prevent, so an unobservable
+property is an error, not a fallback:
+
+    aspect render-app --language=go --name=billing \
+      --out=/scratch/billing \
+      --module-path=example.com/my_project \
+      --package-path=services/billing \
+      --host-oci=yes
+
+| flag | meaning | default |
+|---|---|---|
+| `--module-path` | the host monorepo's Go module path | the `module` line of the nearest `go.mod` at or above `--out` |
+| `--package-path` | the application's path **relative to that module root** — this is where the PR will put it, which need not match `--out` | `--out`'s path relative to that same `go.mod` |
+| `--host-oci` | whether the host ships `bazel/oci/go_image.bzl` and enables the `go_image` gazelle extension | `auto`, which probes the host root |
+
+`--package-path` is not cosmetic: it feeds both `importpath` and the labels in
+the generated `README.md`. Passing `--module-path` alone used to leave the
+package half at a guessed `app/<name>`; it now fails instead of guessing.
 
 ## The gazelle contract
 
@@ -38,12 +68,20 @@ the application, so neither can be hard-coded in the template:
   it from the nearest `go.mod` above `--out`; `--module-path` overrides that when
   there is no `go.mod` to read yet.
 
-A third convention is a property of the host's gazelle configuration: the
+A third convention is a property of the host's gazelle **configuration**: the
 `go_image` Orion extension (`.aspect/gazelle/go_image.axl`) generates a
-`go_image` target for every package containing a `func main`, so the template
-ships one. It loads `//bazel/oci:go_image.bzl`, which means the Go application
-template currently assumes a host monorepo with the `oci` feature — the same
-assumption `--deploy-target` already makes.
+`go_image` target for every package containing a `func main` — but only the
+presets that ship `bazel/oci/` enable it. So the template emits the target
+under `{% if host_oci %}`, and `render-app` resolves `host_oci` by probing the
+host root for `bazel/oci/go_image.bzl`.
+
+Getting this wrong is not a local problem. Emitting the target into a host
+without `bazel/oci/` produces a `load()` of a file that does not exist, which
+fails to load the package and breaks `bazel build //...` for the **entire
+repository**, not just the stamped application. The fixed point still holds in
+both directions, because a host without the extension never generates a
+`go_image` target to begin with. Both hosts are proven in CI: `go` (has oci)
+and `copybara-go` (Go, no oci).
 
 **Never silence this check with `# gazelle:ignore`.** `template/hello/go` opts
 out deliberately: it is a hand-curated sample. A stamped application is real
@@ -60,9 +98,18 @@ presets. Every frontend reads it. Change it and run:
     aspect check-renders      # sampled selections render cleanly
 
 `check-renders` stamps into a scratch directory with no host monorepo above it,
-so it supplies `import_path` with the no-host fallback shape. A template that
-needs another destination-derived value must be given one there too, or the
-smoke passes on output that could never build.
+so it supplies the destination-derived values (`import_path`, `package_path`,
+`host_oci`) itself. A template that needs another such value must be given one
+there too, or the smoke passes on output that could never build.
+
+It renders every sampled selection **twice**, once per `host_oci` branch, because
+the template branches on it and an unrendered branch is an unchecked branch.
+
+Its BUILD.bazel assertion checks for a target *named* after the project
+(`name = "<project>`), not merely for the project name appearing somewhere in
+the file. The looser form was not a check at all: `importpath` contains the
+project name too, so it passed even with every `{{ project_snake }}` in the
+template replaced by a literal.
 
 ## Adding a language
 

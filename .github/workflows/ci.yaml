@@ -243,50 +243,67 @@ jobs:
       # asserts. Without the baseline commit this job would fail on the host
       # template's whitespace and never say anything about the application.
       #
-      # Three stampings, because the BUILD file's shape depends on the
-      # destination, not on the application: `payments` under app/ is the happy
-      # path, `payments_api` proves a snake_case name does not drift into
-      # kebab-case target names, and `services/billing` proves the import path
-      # tracks where the application actually lands.
+      # Two hosts, because the stamped BUILD file's shape depends on the
+      # destination rather than on the application. `go` ships bazel/oci and
+      # enables the go_image gazelle extension; `copybara-go` is a Go host with
+      # NO bazel/oci, where emitting a go_image target would load a file that
+      # does not exist and break `bazel build //...` for the whole repo.
+      #
+      # Three stampings per host: `payments` under app/ is the happy path,
+      # `payments_api` proves a snake_case name does not drift into kebab-case
+      # target names, and `services/billing` proves the import path tracks where
+      # the application actually lands.
       - name: Prove a stamped application is a gazelle fixed point
         run: |
           set -euo pipefail
-          mono="$RUNNER_TEMP/mono"
-          aspect render-preset --preset=go --out="$mono" --name=my_project
-          cd "$mono"
-          git init -q
-          git add -A
-          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "rendered"
-          aspect gazelle --task:name gazelle-app-baseline \
-            --github-status-comments:enabled=false --github-status-checks:enabled=false \
-            --check-only=false
-          git add -A
-          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
+          for preset in go copybara-go; do
+            mono="$RUNNER_TEMP/mono-$preset"
+            cd "$GITHUB_WORKSPACE"
+            aspect render-preset --preset="$preset" --out="$mono" --name=my_project
+            cd "$mono"
+            git init -q
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "rendered"
+            aspect gazelle --task:name "gazelle-app-baseline-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --check-only=false
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
 
-          cd "$GITHUB_WORKSPACE"
-          aspect render-app --language=go --name=payments     --out="$mono/app/payments"
-          aspect render-app --language=go --name=payments_api --out="$mono/app/payments_api"
-          aspect render-app --language=go --name=billing      --out="$mono/services/billing"
+            cd "$GITHUB_WORKSPACE"
+            aspect render-app --language=go --name=payments     --out="$mono/app/payments"
+            aspect render-app --language=go --name=payments_api --out="$mono/app/payments_api"
+            aspect render-app --language=go --name=billing      --out="$mono/services/billing"
 
-          cd "$mono"
-          git add -A
-          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"
-          aspect gazelle --task:name gazelle-app-fixedpoint \
-            --github-status-comments:enabled=false --github-status-checks:enabled=false \
-            --check-only=false
-          # The verdict. Any diff means gazelle disagreed with what we stamped,
-          # which is the same red the target monorepo's stale-BUILD gate would
-          # show on the first stamping PR. Do NOT silence it with
-          # `# gazelle:ignore` -- that hides exactly what this exists to catch.
-          git diff --exit-code
+            cd "$mono"
+            git add -A
+            git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"
+            aspect gazelle --task:name "gazelle-app-fixedpoint-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --check-only=false
+            # The verdict. `git add -A` first: gazelle CREATES BUILD files as
+            # well as editing them, and a created file is untracked, which plain
+            # `git diff --exit-code` reports as clean. Staging first makes the
+            # comparison HEAD-vs-index, so additions and deletions count too.
+            #
+            # Any difference means gazelle disagreed with what we stamped, which
+            # is the same red the target monorepo's stale-BUILD gate would show
+            # on the first stamping PR. Do NOT silence it with
+            # `# gazelle:ignore` -- that hides exactly what this exists to catch.
+            git add -A
+            git diff --cached --exit-code
+          done
 
       # A fixed point that does not build is worthless: assert the stamped
-      # applications compile, their tests pass, and their images assemble.
+      # applications compile, their tests pass, and (on the oci host) their
+      # images assemble.
       - name: Build and test the stamped applications
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/mono"
-          bazel test //app/... //services/...
+          for preset in go copybara-go; do
+            cd "$RUNNER_TEMP/mono-$preset"
+            bazel test //app/... //services/...
+          done
 
   # Stable name for branch protection: "every preset leg and the application
   # contract passed". app-contract is aggregated here rather than required on

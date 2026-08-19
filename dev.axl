@@ -111,9 +111,17 @@ check_metadata = task(
 #     depends on the monorepo being stamped into and on where in it the
 #     application lands -- `app/`, `services/`, anywhere.
 #
-# Both are therefore computed here from --out and handed to the template as one
-# `import_path` value, and the directory-name rule is enforced rather than
-# hoped for.
+# A third is a property of the host's gazelle CONFIGURATION: the go_image Orion
+# extension generates an image target for every package with a `func main`, but
+# only the presets that ship `bazel/oci/` enable it. Stamping the go_image
+# target into a host without it emits a load() of a file that does not exist,
+# which poisons the package and breaks `bazel build //...` repo-wide.
+#
+# All three are therefore resolved HERE, from the host, and handed to the
+# template (`import_path`, `package_path`, `host_oci`); the directory-name rule
+# is enforced rather than hoped for. None of them is ever guessed: a destination
+# property that cannot be observed is an error, not a default. Guessing is what
+# shipped the broken BUILD file this contract exists to prevent.
 
 def _absolute(ctx, path):
     if path.startswith("/"):
@@ -132,28 +140,32 @@ def _path_segments(path):
         segs.append(s)
     return segs
 
-def _host_module(ctx, out_abs, name):
-    """Return (module_path, package_path) for the monorepo --out lands in.
+def _host_module(ctx, out_abs):
+    """Locate the host Go module --out lands in.
 
-    Walks up from --out for the nearest go.mod -- that directory is the host
-    module root, and everything below it is the package path gazelle will use.
-    Falls back to the self-contained `example.com/<name>` + `app/<name>` shape
-    when there is no go.mod above --out (rendering to a scratch dir).
+    Walks up from --out for the nearest go.mod: that directory is the module
+    root, its `module` line is the module path, and everything below it is the
+    package path gazelle will use.
+
+    Returns (root_abs, module_path, package_path), or ("", "", "") when there is
+    no go.mod at or above --out. There is deliberately NO fallback value -- a
+    guessed import path is the exact bug this contract exists to prevent, so the
+    caller turns "not found" into an error naming the flags that fix it.
     """
     segs = _path_segments(out_abs)
     rel = []
     for _ in range(len(segs) + 1):
         if not segs:
             break
-        gomod = "/" + "/".join(segs) + "/go.mod"
-        if ctx.std.fs.exists(gomod):
-            for line in ctx.std.fs.read_to_string(gomod).split("\n"):
+        root = "/" + "/".join(segs)
+        if ctx.std.fs.exists(root + "/go.mod"):
+            for line in ctx.std.fs.read_to_string(root + "/go.mod").split("\n"):
                 line = line.strip()
                 if line.startswith("module "):
-                    return (line[len("module "):].strip(), "/".join(rel))
-            break
+                    return (root, line[len("module "):].strip(), "/".join(rel))
+            fail("{}/go.mod has no `module` line, so the host module path cannot be read; pass --module-path".format(root))
         rel.insert(0, segs.pop())
-    return ("example.com/" + name, "app/" + name)
+    return ("", "", "")
 
 def _render_app_impl(ctx):
     repo_dir = ctx.std.env.current_dir()
@@ -202,10 +214,44 @@ def _render_app_impl(ctx):
         fail(("--out must end in a directory named after the application: gazelle names Go " +
               "targets after the directory, so stamping {!r} into .../{} produces a BUILD file " +
               "gazelle immediately rewrites. Use --out=.../{}").format(ctx.args.name, out_base, ctx.args.name))
-    module_path, package_path = _host_module(ctx, out_abs, ctx.args.name)
+    root, module_path, package_path = _host_module(ctx, out_abs)
+
+    # Stamping ONTO a module root is incoherent: --out is cleared before
+    # rendering, so we would read that go.mod and then delete it, and the
+    # package path relative to itself is empty. Refuse instead.
+    if root != "" and root == out_abs:
+        fail(("--out is itself a Go module root ({}/go.mod), and render-app clears --out -- " +
+              "that would delete the go.mod it just read. Stamp into a subdirectory of the " +
+              "module instead, e.g. --out={}/app/{}").format(out_abs, out_abs, ctx.args.name))
+
     if ctx.args.module_path != "":
         module_path = ctx.args.module_path
+    if ctx.args.package_path != "":
+        package_path = ctx.args.package_path
+    _no_host = ("no go.mod at or above --out ({}), so the host monorepo's {{}} cannot be read. " +
+                "Pass --module-path and --package-path when stamping somewhere that is not " +
+                "inside the target monorepo (rendering to a scratch dir to open a PR with)."
+                ).format(out_abs)
+    if module_path == "":
+        fail(_no_host.format("module path"))
+    if package_path == "":
+        fail(_no_host.format("package path"))
+    flags["package_path"] = package_path
     flags["import_path"] = module_path + "/" + package_path
+
+    # The go_image Orion extension only exists in hosts that ship bazel/oci.
+    # Probing the host root is exact; when there is no host on disk the caller
+    # must say, because emitting the target into a host without the extension
+    # breaks `bazel build //...` for the whole repo.
+    host_oci = ctx.args.host_oci
+    if host_oci == "auto":
+        if root == "":
+            fail(("--host-oci=auto needs a host on disk to probe, and there is no go.mod at or " +
+                  "above --out ({}). Pass --host-oci=yes or --host-oci=no: `yes` if the target " +
+                  "monorepo has bazel/oci/go_image.bzl and enables the go_image gazelle " +
+                  "extension, `no` otherwise.").format(out_abs))
+        host_oci = "yes" if ctx.std.fs.exists(root + "/bazel/oci/go_image.bzl") else "no"
+    flags["host_oci"] = host_oci == "yes"
 
     # The app section carries its own rules/no_render/executable because globs are
     # matched relative to the template_dir passed below, not to template/.
@@ -238,12 +284,15 @@ render_app = task(
         "deploy_target": args.string(default = "homelab", description = "Deploy target (see app.deploy_targets)"),
         "db_provider": args.string(default = "", description = "Database provider; defaults to the target's default"),
         "http_framework": args.string(default = "", description = "HTTP framework; defaults to the language's default"),
-        "module_path": args.string(default = "", description = "Host Go module path; defaults to the module declared by the nearest go.mod above --out"),
+        "module_path": args.string(default = "", description = "Host Go module path; defaults to the module declared by the nearest go.mod at or above --out"),
+        "package_path": args.string(default = "", description = "Application's path relative to the host module root; defaults to --out's path relative to that go.mod"),
+        "host_oci": args.string(default = "auto", values = ["auto", "yes", "no"], description = "Whether the host monorepo ships bazel/oci and enables the go_image gazelle extension; 'auto' probes the host"),
     },
 )
 
 # The project name tier 2 stamps every sampled selection under.
 _SMOKE_NAME = "smoke_app"
+_SMOKE_PKG = "app/" + _SMOKE_NAME
 
 def _check_renders_impl(ctx):
     repo_dir = ctx.std.env.current_dir()
@@ -262,22 +311,26 @@ def _check_renders_impl(ctx):
 
     failures = []
     checked = 0
-    for sel in sample_selections(app):
+    for sel_and_oci in [(sel, oci) for sel in sample_selections(app) for oci in [True, False]]:
+        sel = sel_and_oci[0]
+        host_oci = sel_and_oci[1]
         language = sel[0]
         concerns = resolve_concerns(app, language, sel[1])
-        label = sel[2]
+        label = sel[2] + ("+oci" if host_oci else "+no-oci")
         target = app["deploy_targets"]["homelab"]
         fw = app.get("http_frameworks", {}).get(language)
         flags = app_flags(app, language, concerns,
                           fw["default"] if fw else "",
                           "homelab", target["default_db_provider"])
 
-        # render-app resolves import_path from the host monorepo (see "the
-        # gazelle contract"); tier 2 renders into a scratch dir with no host, so
-        # it supplies the same key with the no-host fallback shape. Without it
-        # the templates would emit an empty importpath and the smoke would pass
-        # on output that could never build.
-        flags["import_path"] = "example.com/" + _SMOKE_NAME + "/app/" + _SMOKE_NAME
+        # render-app resolves these from the host monorepo (see "the gazelle
+        # contract"); tier 2 has no host, so it supplies them directly. Both
+        # host_oci branches are rendered because the template BRANCHES on it --
+        # smoke-testing only one leaves the other's syntax unchecked, which is
+        # how a host without bazel/oci would have shipped broken.
+        flags["package_path"] = _SMOKE_PKG
+        flags["import_path"] = "example.com/" + _SMOKE_NAME + "/" + _SMOKE_PKG
+        flags["host_oci"] = host_oci
         out = base_out + "/" + language + "-" + str(checked)
         ctx.std.fs.create_dir_all(out)
         template_dir = repo_dir + "/template/" + app["languages"][language]["template_dir"]
@@ -289,8 +342,12 @@ def _check_renders_impl(ctx):
             content = ctx.std.fs.read_to_string(out + "/" + rel)
             if "{{" in content or "{%" in content:
                 failures.append("{} [{}]: {} still contains unrendered Jinja".format(label, language, rel))
-            if _SMOKE_NAME not in content and rel == "BUILD.bazel":
-                failures.append("{} [{}]: BUILD.bazel never substituted the project name".format(label, language))
+            # Assert on the TARGET-NAME form specifically. Scanning the whole
+            # file for the project name is not a check: import_path contains the
+            # name too, so the assertion passed even with every {{ project_snake }}
+            # in the template replaced by a literal.
+            if rel == "BUILD.bazel" and ('name = "' + _SMOKE_NAME) not in content:
+                failures.append("{} [{}]: BUILD.bazel has no target named after the project; gazelle names Go targets after the directory, so a literal here is a stale-BUILD failure downstream".format(label, language))
         checked += 1
 
     ctx.std.io.stdout.write("check-renders: {} selection(s) rendered\n".format(checked))
