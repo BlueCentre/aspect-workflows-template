@@ -5,12 +5,37 @@ stamping (`aspect render-app`) creates one application **inside** an existing
 monorepo. They are different products; see the design spec in `vitruvian-core`
 at `docs/superpowers/specs/2026-08-18-universal-initializer-design.md`.
 
+**The initializer ships inside every repo it serves.** It is authored here, in
+`template/tools/initializer/`, and delivered verbatim by repo stamping, so a
+monorepo rendered from any preset arrives with `tools/initializer/` and a
+`MODULE.aspect` that registers `render-app`, `check-metadata` and
+`check-renders` as real `aspect` commands in that repo. Nothing at stamping time
+reaches back to `aspect-workflows-template` — it does not have to exist, be
+reachable, or be version-compatible (ADR-026).
+
 ## Stamping an application
 
-    cd <the-monorepo> && aspect render-app --language=go --name=payments --out=./app/payments
+From the root of the monorepo you are stamping into, using **that repo's own**
+initializer:
+
+    cd <the-monorepo>
+    aspect render-app --language=go --name=payments --out=./app/payments
 
 Optional: `--concerns` (comma-separated; dependencies are added automatically),
 `--deploy-target` (`homelab` or `cloudrun`), `--db-provider`, `--http-framework`.
+
+**Run it from the repo root — this is a requirement, not just how the example
+above happens to `cd`.** `_base(ctx)` locates the engine by probing
+`ctx.std.env.current_dir()` for `template/tools/initializer` or
+`tools/initializer`; from any other directory neither exists there and
+`render-app` fails with "Run this from the repo root," not a guess at the
+correct tree.
+
+The same repo also carries the contract checks, for anyone extending its copy of
+the engine:
+
+    aspect check-metadata     # the contract is internally consistent
+    aspect check-renders      # sampled selections render cleanly
 
 > **`--out` is CLEARED IF IT EXISTS.** `render-app` deletes the directory
 > recursively and recreates it before rendering, exactly like `render-preset`.
@@ -22,7 +47,7 @@ Optional: `--concerns` (comma-separated; dependencies are added automatically),
 Two rules `render-app` enforces rather than assumes:
 
 - **`--out` must end in a directory named after the application.** Not a style
-  rule — see the next section.
+  rule — see [the gazelle contract](#the-gazelle-contract).
 - **`--out` must be inside the target monorepo**, or you must describe that
   monorepo with the flags below. `render-app` reads the destination's `go.mod`;
   it will not invent one. Stamping onto a directory that is *itself* a module
@@ -34,17 +59,36 @@ Two rules `render-app` enforces rather than assumes:
 
 ### Stamping outside the monorepo (the P1 calling convention)
 
-A frontend that renders to a scratch directory and opens a PR against the
-monorepo has no `go.mod` to read, so it must supply every destination property
-itself. There is deliberately **no default** for any of them — a guessed value
-is the exact bug this whole contract exists to prevent, so an unobservable
-property is an error, not a fallback:
+A frontend — the Backstage Create page, the P4 service, `devx app new` — does
+**not** ship an engine of its own. It **clones the target repository and runs
+that repository's `aspect render-app`**, which is why the engine is embedded at
+all: the code that stamps an application is always the same vintage as the repo
+being stamped, so a frontend can serve repos of many different vintages without
+a compatibility matrix.
 
+When the frontend renders into a scratch directory to open a PR with, rather
+than into the checkout itself, there is no `go.mod` above `--out`, so it must
+supply every destination property itself. There is deliberately **no default**
+for any of them — a guessed value is the exact bug this whole contract exists to
+prevent, so an unobservable property is an error, not a fallback:
+
+    cd <clone-of-the-target-monorepo>
     aspect render-app --language=go --name=billing \
       --out=/scratch/billing \
       --module-path=example.com/my_project \
       --package-path=services/billing \
       --host-oci=yes
+
+Note where the command runs: **inside the clone** (that is where an engine
+exists at all — outside a repo carrying `tools/initializer/` there is none to
+run) while `--out` points outside it.
+
+**"Does this repo have an engine?"** is a question a frontend must answer
+*before* cloning-and-running, e.g. to decide whether to offer app stamping at
+all. The concrete predicate: `tools/initializer/config.json` exists **and**
+`MODULE.aspect` registers all three tasks (`render_app`, `check_metadata`,
+`check_renders`) via `use_task("tools/initializer/tasks.axl", ...)`. Either
+alone is not enough — a repo mid-migration could carry one without the other.
 
 | flag | meaning | default |
 |---|---|---|
@@ -61,9 +105,69 @@ package path from, so `--module-path` without `--package-path` is an error, not
 a partial override. (Inside a monorepo either flag may be passed alone: the
 `go.mod` supplies whichever half you omit.)
 
-The `app-contract` CI job renders exactly the invocation above and asserts both
-properties the flags exist to control — that `importpath` is the module path
-joined with the package path, and that `--host-oci=no` emits no `go_image`.
+The `app-contract` CI job renders exactly the invocation above — from inside a
+rendered starter, to an `--out` outside it — and asserts both properties the
+flags exist to control: that `importpath` is the module path joined with the
+package path, and that `--host-oci=no` emits no `go_image`.
+
+## Where the engine lives (two mount points)
+
+One source tree, delivered to a second location. Every path in `tasks.axl` hangs
+off `_base(ctx)`, which *probes* for the two and refuses to guess:
+
+| | path | what it is |
+|---|---|---|
+| authoring | `aspect-workflows-template/template/tools/initializer/` | the **development mount**. Under `template/`, because that is what repo stamping renders. |
+| consumption | `<any stamped repo>/tools/initializer/` | the **product**. `template/` is not part of a starter; the tree below it *is* the starter. |
+
+Both present, or neither present, is an error rather than a preference — there
+is no defensible tie-break, and getting it wrong would be silent (`render-app`
+would happily render whichever tree it found).
+
+The engine tree is listed in `template-config.json`'s `no_render`, so repo
+stamping copies it **verbatim** — the jinja inside it is the application
+templates' own, and must survive to be rendered later by `render-app`. Same for
+`MODULE.aspect`.
+
+### The `.tmpl` suffix
+
+Application templates are named `BUILD.bazel.tmpl`, `main.go.tmpl`,
+`catalog-info.yaml.tmpl`, … and the renderer strips the suffix on output (the
+contract's `template_suffix` key; `render.axl:_output_rel`).
+
+**Why:** a template tree that ships inside a *live repo* cannot name its files
+after its output. A jinja file called `BUILD.bazel` is claimed there by bazel,
+buildifier, gofmt and Backstage discovery. `.bazelignore` (shipped by *repo
+stamping*, from `template/.bazelignore` -- not part of the engine tree) fixes
+bazel and gazelle — but buildifier walks the *filesystem* and does
+not read `.bazelignore`, so `aspect buildifier` in a starter parses the jinja and
+exits 1 no matter what is ignored. (The starter's own CI runs it with no
+`--scope`; the default `--scope=changed` degrades to a whole-tree walk whenever
+it cannot resolve a merge base, which is exactly the state of a freshly
+delivered starter.) The only remedy that covers every such tool is
+a name none of them claims. It also generalizes: `gofmt` is inert on today's
+`main.go` only because its placeholders sit in a comment and a string literal,
+and the first concern that adds a `{% if %}` would break that.
+
+**Consequence for the contract:** globs in `config.json` (`rules`, `no_render`,
+`executable`) match **output** names, not the on-disk template names — the suffix
+is stripped before matching. Write `BUILD.bazel`, never `BUILD.bazel.tmpl`.
+`check-renders` asserts both halves: that no output still carries the suffix, and
+that the rendered name set is exactly what `_EXPECTED_OUTPUTS` in `tasks.axl`
+pins for that language.
+
+### The snapshot trade
+
+An embedded engine is a **snapshot**. A repo stamped today keeps the engine it
+was born with; a fix landed here does not travel back to it.
+
+- Our 26 published starter repos *do* refresh: `deliver.yaml` re-renders every
+  preset from `template/` on each push to `platform-v2.0` and force-pushes the
+  result, so the starters always carry the current engine.
+- Repos created *from* a starter keep their snapshot until someone updates it
+  deliberately. That is the price of the property that buys everything else:
+  stamping never depends on a network, a service, or this repo's availability,
+  and the engine version always matches the repo it is stamping into.
 
 ## The gazelle contract
 
@@ -71,9 +175,10 @@ The stamped `BUILD.bazel` has to be **exactly** what gazelle would generate. The
 monorepo it lands in already gates on stale BUILD files, so if the stamped file
 is not a gazelle fixed point, every stamping PR arrives red no matter how good
 the rendering is. The `app-contract` CI job proves the property on every push by
-rendering a monorepo, normalizing it, stamping three applications in, running
-gazelle, and failing on any diff — and it does that for **each of two hosts**
-(`go` and `copybara-go`), so six stampings are checked in all.
+rendering a monorepo, normalizing it, stamping three applications in **with that
+rendered repo's own embedded engine**, running gazelle, and failing on any diff
+— and it does that for **each of two hosts** (`go` and `copybara-go`), so six
+stampings are checked in all.
 
 Two of gazelle's Go conventions are properties of the **destination**, not of
 the application, so neither can be hard-coded in the template:
@@ -110,9 +215,17 @@ breakage the check exists to catch.
 
 ## The contract
 
-`template-config.json`'s `app` section declares the languages, concerns and
-their `requires` chains, deploy targets and their database providers, and the
-presets. Every frontend reads it. Change it and run:
+`template/tools/initializer/config.json` declares the languages and their
+`template_dir`, the concerns and their `requires` chains, the deploy targets and
+their database providers, the HTTP frameworks, the presets, the render rules,
+and `template_suffix`. It ships with the engine, so every stamped repo has its
+own copy, and every frontend reads the copy belonging to the repo it is stamping
+into. (Repo stamping's own config stays where it was, in the repo-root
+`template-config.json`; the two are separate contracts because their globs are
+relative to different trees.)
+
+Change it and run both checks — from the AWT root while developing, and from a
+stamped repo if you are extending that repo's copy:
 
     aspect check-metadata     # the contract is internally consistent
     aspect check-renders      # sampled selections render cleanly
@@ -133,16 +246,41 @@ the file. The looser form was not a check at all: `importpath` contains the
 project name too, so it passed even with every `{{ project_snake }}` in the
 template replaced by a literal.
 
+`_EXPECTED_OUTPUTS` in `tasks.axl` pins the exact set of files each language
+renders **to**. It is deliberately not read from the contract — the contract is
+the thing under test, and an expectation sourced from it would be disabled by the
+very typo the gate exists to catch. It is a flat set, so it must be updated for
+any change to the rendered file set, not merely for a new language.
+
+## What CI proves, and on which mount
+
+The `app-contract` job in `.github/workflows/ci.yaml`:
+
+| step | mount | proves |
+|---|---|---|
+| `check-metadata`, `check-renders` | AWT root | the **source** contract is consistent and every sampled selection renders |
+| one `render-app` | AWT root | the development mount still runs in place |
+| render + normalize `go` and `copybara-go` | — | two hosts that each carry a freshly delivered engine |
+| `check-metadata`, `check-renders` | inside the `go` starter | the delivered engine is self-contained and `_base()` resolves the starter mount |
+| module-root refusal, 4 spellings | inside the `go` starter | the destructive path refuses, and the host survives |
+| explicit-flags convention | inside the `go` starter, `--out` outside it | the P1 frontend shape: clone the target, run its engine, render elsewhere |
+| stamp 3 apps + gazelle + `git diff --cached --exit-code` | inside each starter | the gazelle fixed point, on the mount users have |
+| `bazel test //app/... //services/...` | inside each starter | a fixed point that actually builds |
+
 ## Adding a language
 
-1. Create `template/app/<language>/`.
-2. Add it to `app.languages` with `template_dir` set to `app/<language>`.
+1. Create `template/tools/initializer/app/<language>/`, with every template file
+   carrying the `.tmpl` suffix.
+2. Add it to `languages` in `template/tools/initializer/config.json` with
+   `template_dir` set to `app/<language>`.
 3. Add the language to `appliesTo` on each concern it supports.
-4. Run both checks; add a preset so the language gets a full build in CI.
-5. Extend the `app-contract` job to stamp the new language into a monorepo that
+4. Add its rendered (unsuffixed) file names to `_EXPECTED_OUTPUTS` in
+   `template/tools/initializer/tasks.axl`; a language with no entry fails
+   `check-renders` rather than being skipped.
+5. Run both checks; add a preset so the language gets a full build in CI.
+6. Extend the `app-contract` job to stamp the new language into a monorepo that
    has it, or the gazelle fixed point goes unproven for that language.
 
-Application templates are excluded from repo stamping by the
-`{"flag": "app_template", "globs": ["app/**"]}` rule. That rule is
-load-bearing: `is_included` includes any path matched by no rule, so removing
-it puts `app/` into all 26 published starter repos.
+The whole engine tree reaches a starter through one `no_render` entry,
+`tools/initializer/**`, and no `rules` entry — so it is delivered to every one
+of the 28 presets, and there is nothing to add when a language is.

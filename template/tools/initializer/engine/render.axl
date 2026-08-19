@@ -17,6 +17,10 @@ Public API:
   - `preset_names(config)` -> sorted list of preset names
   - `preset_flags(config, name)` -> feature-flag dict for a preset
   - `render(ctx, config, template_dir, out_dir, project_snake, flags)` -> [paths]
+
+Optional config key `template_suffix` (see `_output_rel`): when set, it is
+stripped from every output path, so a template file can be named something the
+host's tooling does not claim. Repo stamping leaves it unset.
 """
 
 # --- config ------------------------------------------------------------------
@@ -154,6 +158,49 @@ def _make_executable(ctx, path):
     else:
         ctx.std.process.command("chmod").args(["+x", path]).spawn().wait()
 
+# --- source path -> output path ----------------------------------------------
+
+def _output_rel(suffix, rel):
+    """Map a path in the template tree to its path in the output tree.
+
+    A template tree that SHIPS INSIDE a live repo cannot name its files the way
+    its output is named. `tools/initializer/app/go/` renders a Bazel package, so
+    the natural name for its BUILD template is `BUILD.bazel` -- but the engine is
+    rendered verbatim into every starter, and a file called `BUILD.bazel` holding
+    `{% ... %}` is claimed by every Starlark tool in the host repo:
+
+      * bazel treats the directory as a package and `bazel query //...` exits 7;
+      * buildifier (8.5.1) walks the FILESYSTEM by name and does not read
+        `.bazelignore`, verified directly -- so the starter's `.bazelignore`
+        entry fixes bazel and gazelle but not buildifier, which reaches this
+        file either way: the starter's own CI runs bare `aspect buildifier`,
+        whose default scope degrades to a whole-tree walk when merge-base
+        detection fails, and AWT's own CI reaches it via its `--scope=all`
+        preset matrix.
+
+    The same argument applies to any host tool that claims a name: gofmt on a
+    `main.go` (inert today because that template's placeholders sit inside a
+    comment and a string literal, but not once a concern adds a `{% if %}`),
+    Backstage catalog discovery on a `catalog-info.yaml`, an IDE on either.
+
+    So the engine's templates carry a `.tmpl` suffix that no tool claims, and the
+    renderer strips it here. The starter's `.bazelignore` entry stays too: with
+    the suffix, bazel already sees no package under `tools/initializer/`, so the
+    entry is now belt-and-braces rather than the fix -- and it is the cheap half,
+    the one that still holds if a future template file is named something bazel
+    claims outright.
+
+    Everything downstream -- `rules`, `no_render`, `executable`, and the returned
+    list -- is matched against the OUTPUT path, so a config author writes the
+    names they see in the rendered tree, never the suffixed source names.
+
+    `suffix` empty (repo stamping, which has no such problem: `template/` is not
+    shipped into anything) makes this the identity.
+    """
+    if suffix and rel.endswith(suffix) and len(rel) > len(suffix):
+        return rel[:-len(suffix)]
+    return rel
+
 # --- directory walk ----------------------------------------------------------
 
 def _walk(ctx, root):
@@ -199,10 +246,14 @@ def render(ctx, config, template_dir, out_dir, project_snake, flags):
     data["project_name"] = project_snake
 
     written = []
-    for rel in _walk(ctx, template_dir):
+    suffix = config.get("template_suffix", "")
+    for src_rel in _walk(ctx, template_dir):
+        # Decide everything on the OUTPUT path (see _output_rel); `src_rel` is
+        # used only to read the file.
+        rel = _output_rel(suffix, src_rel)
         if not is_included(config, rel, flags):
             continue
-        src = template_dir + "/" + rel
+        src = template_dir + "/" + src_rel
         dst = out_dir + "/" + rel
 
         parent = dst.rsplit("/", 1)[0] if "/" in dst else out_dir

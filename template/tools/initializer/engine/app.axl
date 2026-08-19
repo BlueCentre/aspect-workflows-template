@@ -2,39 +2,69 @@
 
 Repo stamping (render-preset, template/) composes a whole monorepo. Application
 stamping composes ONE application inside an existing monorepo -- a different
-product (see the design spec, section 1), so it gets its own section of
-template-config.json and its own rules/no_render/executable arrays. Globs are
-matched relative to whichever template_dir render() is given, which is why the
-two cannot share one array.
+product (see the design spec, section 1), so it gets its own contract file and
+its own rules/no_render/executable arrays. Globs are matched relative to
+whichever template_dir render() is given, which is why the two cannot share one
+array.
+
+The contract is `config.json` at the ENGINE ROOT (the directory holding
+`tasks.axl`, `engine/`, `app/`), not a section of the repo's
+`template-config.json`: the engine ships inside every rendered starter, so the
+contract has to travel with it rather than with the repo template.
 """
 
-APP_KEY = "app"
+# The app contract lives beside tasks.axl, at the engine root.
+CONFIG_FILENAME = "config.json"
 
-def app_config(config):
-    """Return the `app` section, failing loudly if the contract is missing."""
-    if APP_KEY not in config:
-        fail("template-config.json has no {!r} section; the application initializer cannot run".format(APP_KEY))
-    return config[APP_KEY]
+def load_app_config(ctx, engine_root):
+    """Read + parse the app contract (config.json) at engine_root.
+
+    Checks for the file first so a missing contract names itself. Letting
+    read_to_string raise gives `No such file or directory (os error 2)` with no
+    path in it -- true, loud, and useless: the engine is shipped into other
+    repos, so the reader of that message is someone who does not yet know where
+    the engine root is. Built by concatenation rather than .format() because
+    `engine_root` is a path from the environment and may contain braces.
+    """
+    path = engine_root + "/" + CONFIG_FILENAME
+    if not ctx.std.fs.exists(path):
+        fail("the application initializer engine at " + engine_root + " has no " + CONFIG_FILENAME +
+             ": the metadata contract is missing, so there is nothing to render from. " +
+             "Restore " + path + " (it ships with the engine; see ADR-026).")
+    return json.decode(ctx.std.fs.read_to_string(path))
 
 def _require_keys(where, obj, keys, problems):
     for k in keys:
         if k not in obj:
             problems.append("{}: missing required key {!r}".format(where, k))
 
-def validate_app_config(config):
-    """Return a list of problems with the `app` section. Empty means valid.
+def validate_app_config(app):
+    """Return a list of problems with the app contract. Empty means valid.
 
-    Pure: takes the parsed config, returns strings. No ctx, no filesystem, so it
-    is callable from a check task and from any future consumer.
+    Pure: takes the parsed contract (the whole config.json object), returns
+    strings. No ctx, no filesystem, so it is callable from a check task and from
+    any future consumer.
     """
     problems = []
-    if APP_KEY not in config:
-        return ["template-config.json has no {!r} section".format(APP_KEY)]
-    app = config[APP_KEY]
 
-    _require_keys("app", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable"], problems)
+    _require_keys("config.json", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable", "template_suffix"], problems)
     if problems:
         return problems
+
+    # `template_suffix` is REQUIRED, not optional-with-a-default, because it is
+    # load-bearing: render.axl strips it to turn `BUILD.bazel.tmpl` back into
+    # `BUILD.bazel`. Read through a `.get(..., "")` default, a misspelt key is
+    # indistinguishable from "no suffix" -- the renderer happily stamps
+    # `BUILD.bazel.tmpl` into a host monorepo and every gate stays green. So the
+    # key must exist, and it must be a usable suffix: a non-empty string starting
+    # with "." (a suffix that is not an extension would eat part of the filename).
+    suffix = app["template_suffix"]
+    if type(suffix) != "string":
+        problems.append("config.json: template_suffix must be a string, got {}".format(type(suffix)))
+    elif suffix == "":
+        problems.append("config.json: template_suffix is empty; it is what turns `BUILD.bazel{}` back into `BUILD.bazel` on render, so an empty value would stamp the template names into the host".format(".tmpl"))
+    elif not suffix.startswith("."):
+        problems.append("config.json: template_suffix {!r} does not start with '.'; it is stripped as a filename extension, so anything else would eat part of the name".format(suffix))
 
     languages = app["languages"]
     concerns = app["concerns"]

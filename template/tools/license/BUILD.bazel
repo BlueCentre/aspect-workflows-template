@@ -43,6 +43,15 @@ _IGNORE_GLOBS = [
     "REPO.bazel",
     # AXL renderer/config files
     "**/*.axl",
+    # The application initializer engine. It is authored in
+    # aspect-workflows-template and shipped BYTE-IDENTICAL into this repo
+    # (ADR-026), so anything that edits it here -- a header included -- makes the
+    # published copy diverge from its source. Nothing under it takes a header
+    # today (its code is `.axl`, already ignored above; its app templates are
+    # `.tmpl` and its contract `.json`, extensions addlicense has no comment
+    # style for), so this entry changes nothing now. It is here to keep that true
+    # for the next engine file, which need not have a lucky extension.
+    "tools/initializer/**",
     # Tool/formatter configuration files
     ".rubocop.yml",
     ".clippy.toml",
