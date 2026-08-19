@@ -2,37 +2,39 @@
 
 Repo stamping (render-preset, template/) composes a whole monorepo. Application
 stamping composes ONE application inside an existing monorepo -- a different
-product (see the design spec, section 1), so it gets its own section of
-template-config.json and its own rules/no_render/executable arrays. Globs are
-matched relative to whichever template_dir render() is given, which is why the
-two cannot share one array.
+product (see the design spec, section 1), so it gets its own contract file and
+its own rules/no_render/executable arrays. Globs are matched relative to
+whichever template_dir render() is given, which is why the two cannot share one
+array.
+
+The contract is `config.json` at the ENGINE ROOT (the directory holding
+`tasks.axl`, `engine/`, `app/`), not a section of the repo's
+`template-config.json`: the engine ships inside every rendered starter, so the
+contract has to travel with it rather than with the repo template.
 """
 
-APP_KEY = "app"
+# The app contract lives beside tasks.axl, at the engine root.
+CONFIG_FILENAME = "config.json"
 
-def app_config(config):
-    """Return the `app` section, failing loudly if the contract is missing."""
-    if APP_KEY not in config:
-        fail("template-config.json has no {!r} section; the application initializer cannot run".format(APP_KEY))
-    return config[APP_KEY]
+def load_app_config(ctx, engine_root):
+    """Read + parse the app contract (config.json) at engine_root."""
+    return json.decode(ctx.std.fs.read_to_string(engine_root + "/" + CONFIG_FILENAME))
 
 def _require_keys(where, obj, keys, problems):
     for k in keys:
         if k not in obj:
             problems.append("{}: missing required key {!r}".format(where, k))
 
-def validate_app_config(config):
-    """Return a list of problems with the `app` section. Empty means valid.
+def validate_app_config(app):
+    """Return a list of problems with the app contract. Empty means valid.
 
-    Pure: takes the parsed config, returns strings. No ctx, no filesystem, so it
-    is callable from a check task and from any future consumer.
+    Pure: takes the parsed contract (the whole config.json object), returns
+    strings. No ctx, no filesystem, so it is callable from a check task and from
+    any future consumer.
     """
     problems = []
-    if APP_KEY not in config:
-        return ["template-config.json has no {!r} section".format(APP_KEY)]
-    app = config[APP_KEY]
 
-    _require_keys("app", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable"], problems)
+    _require_keys("config.json", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable"], problems)
     if problems:
         return problems
 
