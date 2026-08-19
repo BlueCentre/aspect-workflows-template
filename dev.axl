@@ -8,7 +8,7 @@ here proves the template renders. It's also what the CI matrix and the
 """
 
 load("./render.axl", "load_config", "preset_flags", "render")
-load("./app.axl", "app_config", "app_flags", "resolve_concerns", "validate_app_config")
+load("./app.axl", "app_config", "app_flags", "resolve_concerns", "sample_selections", "validate_app_config")
 
 # Backstage presets ship a software-template (template.yaml) whose `skeleton/`
 # must contain a concrete copy of the rendered project so Backstage's scaffolder
@@ -160,5 +160,63 @@ render_app = task(
         "deploy_target": args.string(default = "homelab", description = "Deploy target (see app.deploy_targets)"),
         "db_provider": args.string(default = "", description = "Database provider; defaults to the target's default"),
         "http_framework": args.string(default = "", description = "HTTP framework; defaults to the language's default"),
+    },
+)
+
+def _check_renders_impl(ctx):
+    repo_dir = ctx.std.env.current_dir()
+    config = load_config(ctx, repo_dir)
+    problems = validate_app_config(config)
+    if problems:
+        for p in problems:
+            ctx.std.io.stdout.write("  - {}\n".format(p))
+        fail("application metadata contract is invalid; run `aspect check-metadata`")
+    app = app_config(config)
+
+    app_render_config = {"rules": app["rules"], "no_render": app["no_render"], "executable": app["executable"]}
+    base_out = ctx.args.out_dir
+    if ctx.std.fs.exists(base_out):
+        ctx.std.fs.remove_dir_all(base_out)
+
+    failures = []
+    checked = 0
+    for sel in sample_selections(app):
+        language = sel[0]
+        concerns = resolve_concerns(app, language, sel[1])
+        label = sel[2]
+        target = app["deploy_targets"]["homelab"]
+        fw = app.get("http_frameworks", {}).get(language)
+        flags = app_flags(app, language, concerns,
+                          fw["default"] if fw else "",
+                          "homelab", target["default_db_provider"])
+        out = base_out + "/" + language + "-" + str(checked)
+        ctx.std.fs.create_dir_all(out)
+        template_dir = repo_dir + "/template/" + app["languages"][language]["template_dir"]
+        written = render(ctx, app_render_config, template_dir, out, "smoke_app", flags)
+
+        if not written:
+            failures.append("{} [{}]: rendered zero files".format(label, language))
+        for rel in written:
+            content = ctx.std.fs.read_to_string(out + "/" + rel)
+            if "{{" in content or "{%" in content:
+                failures.append("{} [{}]: {} still contains unrendered Jinja".format(label, language, rel))
+            if "smoke_app" not in content and rel == "BUILD.bazel":
+                failures.append("{} [{}]: BUILD.bazel never substituted the project name".format(label, language))
+        checked += 1
+
+    ctx.std.io.stdout.write("check-renders: {} selection(s) rendered\n".format(checked))
+    if failures:
+        for f in failures:
+            ctx.std.io.stdout.write("  - {}\n".format(f))
+        fail("{} render problem(s)".format(len(failures)))
+    ctx.std.io.stdout.write("check-renders: OK\n")
+    return 0
+
+check_renders = task(
+    kind = "check-renders",
+    summary = "Render sampled valid selections and assert each output is clean",
+    implementation = _check_renders_impl,
+    args = {
+        "out_dir": args.string(default = "/tmp/aspect-check-renders", description = "Scratch directory for rendered output"),
     },
 )
