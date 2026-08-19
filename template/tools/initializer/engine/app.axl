@@ -47,9 +47,24 @@ def validate_app_config(app):
     """
     problems = []
 
-    _require_keys("config.json", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable"], problems)
+    _require_keys("config.json", app, ["languages", "concerns", "deploy_targets", "http_frameworks", "presets", "rules", "no_render", "executable", "template_suffix"], problems)
     if problems:
         return problems
+
+    # `template_suffix` is REQUIRED, not optional-with-a-default, because it is
+    # load-bearing: render.axl strips it to turn `BUILD.bazel.tmpl` back into
+    # `BUILD.bazel`. Read through a `.get(..., "")` default, a misspelt key is
+    # indistinguishable from "no suffix" -- the renderer happily stamps
+    # `BUILD.bazel.tmpl` into a host monorepo and every gate stays green. So the
+    # key must exist, and it must be a usable suffix: a non-empty string starting
+    # with "." (a suffix that is not an extension would eat part of the filename).
+    suffix = app["template_suffix"]
+    if type(suffix) != "string":
+        problems.append("config.json: template_suffix must be a string, got {}".format(type(suffix)))
+    elif suffix == "":
+        problems.append("config.json: template_suffix is empty; it is what turns `BUILD.bazel{}` back into `BUILD.bazel` on render, so an empty value would stamp the template names into the host".format(".tmpl"))
+    elif not suffix.startswith("."):
+        problems.append("config.json: template_suffix {!r} does not start with '.'; it is stripped as a filename extension, so anything else would eat part of the name".format(suffix))
 
     languages = app["languages"]
     concerns = app["concerns"]

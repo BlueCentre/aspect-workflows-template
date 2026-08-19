@@ -84,7 +84,10 @@ def _render_config(app):
         "rules": app["rules"],
         "no_render": app["no_render"],
         "executable": app["executable"],
-        "template_suffix": app.get("template_suffix", ""),
+        # Indexed, not .get(...,""): validate_app_config runs before every call
+        # and now REQUIRES the key, so a default here could only mask the exact
+        # typo that gate exists to catch.
+        "template_suffix": app["template_suffix"],
     }
 
 # --- the gazelle contract ----------------------------------------------------
@@ -298,6 +301,18 @@ render_app = task(
 
 # The project name tier 2 stamps every sampled selection under.
 _SMOKE_NAME = "smoke_app"
+
+# The exact set of files each language must RENDER TO. Declared here, in the
+# check, and deliberately NOT read from config.json: the contract is the thing
+# under test, so an expectation sourced from it would be disabled by the very
+# typo this is here to catch (a misspelt `template_suffix` key rendered the whole
+# tree as `*.tmpl` while check-metadata and check-renders both said OK).
+#
+# A language with no entry is an error rather than a skip, so adding wave-2
+# languages forces this gate to be extended with them.
+_EXPECTED_OUTPUTS = {
+    "go": ["BUILD.bazel", "README.md", "catalog-info.yaml", "main.go", "main_test.go"],
+}
 _SMOKE_PKG = "app/" + _SMOKE_NAME
 
 def _check_renders_impl(ctx):
@@ -310,6 +325,7 @@ def _check_renders_impl(ctx):
         fail("application metadata contract is invalid; run `aspect check-metadata`")
 
     app_render_config = _render_config(app)
+    suffix = app_render_config["template_suffix"]
     base_out = ctx.args.out_dir
     if ctx.std.fs.exists(base_out):
         ctx.std.fs.remove_dir_all(base_out)
@@ -343,6 +359,26 @@ def _check_renders_impl(ctx):
 
         if not written:
             failures.append("{} [{}]: rendered zero files".format(label, language))
+
+        # The output NAMES are part of the contract, not an implementation
+        # detail: `tools/initializer/app/go/BUILD.bazel.tmpl` has to land in the
+        # host as `BUILD.bazel` or gazelle regenerates the package around a file
+        # it does not recognise. Two independent assertions, because each catches
+        # a failure the other misses -- the suffix check catches a stripping bug
+        # for any language, the name-set check catches a rename or a dropped file
+        # even if stripping still works.
+        leftover = [r for r in written if r.endswith(suffix)]
+        if leftover:
+            failures.append(("{} [{}]: {} output(s) still carry the template suffix {!r} ({}); the " +
+                             "renderer must strip it, or the host gets files no toolchain claims").format(
+                label, language, len(leftover), suffix, ", ".join(sorted(leftover))))
+        if language not in _EXPECTED_OUTPUTS:
+            failures.append(("{} [{}]: no expected output set for this language; add one to " +
+                             "_EXPECTED_OUTPUTS so the rendered names stay gated").format(label, language))
+        elif sorted(written) != sorted(_EXPECTED_OUTPUTS[language]):
+            failures.append("{} [{}]: rendered {} but expected {}".format(
+                label, language, sorted(written), sorted(_EXPECTED_OUTPUTS[language])))
+
         for rel in written:
             content = ctx.std.fs.read_to_string(out + "/" + rel)
             if "{{" in content or "{%" in content:
