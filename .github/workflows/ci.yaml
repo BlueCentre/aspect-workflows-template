@@ -235,6 +235,67 @@ jobs:
       - name: Render sampled selections and inspect the output
         run: aspect check-renders
 
+      # The P1 calling convention: a frontend rendering to a scratch directory
+      # has no host on disk, so it supplies every destination property itself.
+      # Nothing else in CI exercises that form -- the fixed-point job below
+      # always stamps INTO a rendered monorepo, where all three are derived.
+      # Assert the two properties the flags exist to control: the import path is
+      # the module path joined with the package path (NOT with --out's location,
+      # which differs here on purpose), and --host-oci=no emits no go_image.
+      - name: Render with the explicit-flags calling convention
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/scratch/convention_probe"
+          aspect render-app --language=go --name=convention_probe --out="$probe" \
+            --module-path=example.com/my_project \
+            --package-path=services/convention_probe \
+            --host-oci=no
+          if ! grep -qF 'importpath = "example.com/my_project/services/convention_probe"' "$probe/BUILD.bazel"; then
+            echo "--module-path + --package-path did not reach importpath:"
+            grep -n importpath "$probe/BUILD.bazel" || echo "  (no importpath at all)"
+            exit 1
+          fi
+          if grep -q go_image "$probe/BUILD.bazel"; then
+            echo "--host-oci=no still emitted a go_image target, which breaks \`bazel build //...\` on a host without bazel/oci:"
+            grep -n go_image "$probe/BUILD.bazel"
+            exit 1
+          fi
+          echo "explicit-flags convention: importpath and host_oci both honoured"
+
+      # Regression guard for a data-loss bug: `--out` is REMOVED before
+      # rendering, so a `--out` that is itself a module root would delete the
+      # go.mod render-app just read. The refusal existed but compared a
+      # normalized module root against the RAW --out argument, so `<root>/` and
+      # `<root>/.` walked straight past it and deleted the host module. Every
+      # spelling of the same directory must refuse, and the host must survive.
+      - name: Refuse to stamp onto a module root, however --out is spelled
+        run: |
+          set -euo pipefail
+          host="$RUNNER_TEMP/hostmod"
+          for spelling in "$host/" "$host/." "$host" "$host/app/../../hostmod"; do
+            rm -rf "$host"
+            mkdir -p "$host"
+            printf 'module example.com/hostmod\n\ngo 1.24\n' > "$host/go.mod"
+            echo "DO-NOT-DELETE" > "$host/KEEPFILE"
+            if aspect render-app --language=go --name=hostmod --out="$spelling" \
+                 --module-path=example.com/x --package-path=app/x --host-oci=no > "$RUNNER_TEMP/refusal.log" 2>&1; then
+              echo "--out='$spelling' was ACCEPTED; it must be refused as a module root."
+              echo "surviving files:"
+              find "$host" -mindepth 1 -maxdepth 1
+              exit 1
+            fi
+            if ! grep -q -- "--out is itself a Go module root" "$RUNNER_TEMP/refusal.log"; then
+              echo "--out='$spelling' failed, but not with the module-root refusal:"
+              cat "$RUNNER_TEMP/refusal.log"
+              exit 1
+            fi
+            if [ ! -f "$host/go.mod" ] || [ "$(cat "$host/KEEPFILE" 2>/dev/null)" != "DO-NOT-DELETE" ]; then
+              echo "--out='$spelling' refused but still damaged the host module."
+              exit 1
+            fi
+            echo "refused and host intact: --out='$spelling'"
+          done
+
       # Render a monorepo, NORMALIZE it, commit that as the baseline, then stamp
       # applications in and re-run gazelle. The normalize pass is what isolates
       # the property under test: a freshly rendered preset is not itself a

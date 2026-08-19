@@ -12,6 +12,13 @@ at `docs/superpowers/specs/2026-08-18-universal-initializer-design.md`.
 Optional: `--concerns` (comma-separated; dependencies are added automatically),
 `--deploy-target` (`homelab` or `cloudrun`), `--db-provider`, `--http-framework`.
 
+> **`--out` is CLEARED IF IT EXISTS.** `render-app` deletes the directory
+> recursively and recreates it before rendering, exactly like `render-preset`.
+> Point it at the application's own directory and nothing else. Every spelling
+> of the path is normalized first, so `--out=X`, `--out=X/`, and `--out=X/.`
+> all name — and all clear — the same directory. A frontend must never pass a
+> directory it does not own the entire contents of.
+
 Two rules `render-app` enforces rather than assumes:
 
 - **`--out` must end in a directory named after the application.** Not a style
@@ -20,7 +27,10 @@ Two rules `render-app` enforces rather than assumes:
   monorepo with the flags below. `render-app` reads the destination's `go.mod`;
   it will not invent one. Stamping onto a directory that is *itself* a module
   root is refused, because `--out` is cleared before rendering and that would
-  delete the `go.mod` just read.
+  delete the `go.mod` just read. The refusal compares normalized path
+  *segments*, so no spelling of the module root (`<root>/`, `<root>/.`,
+  `<root>/x/..`) can slip past it; CI proves all of them, and proves the host
+  survives the refusal.
 
 ### Stamping outside the monorepo (the P1 calling convention)
 
@@ -43,8 +53,17 @@ property is an error, not a fallback:
 | `--host-oci` | whether the host ships `bazel/oci/go_image.bzl` and enables the `go_image` gazelle extension | `auto`, which probes the host root |
 
 `--package-path` is not cosmetic: it feeds both `importpath` and the labels in
-the generated `README.md`. Passing `--module-path` alone used to leave the
-package half at a guessed `app/<name>`; it now fails instead of guessing.
+the generated `README.md`. **`--module-path` and `--package-path` come as a
+pair when there is no host on disk.** Passing `--module-path` alone used to
+leave the package half at a guessed `app/<name>`; it now *fails* instead of
+guessing — with no `go.mod` above `--out` there is nothing to derive the
+package path from, so `--module-path` without `--package-path` is an error, not
+a partial override. (Inside a monorepo either flag may be passed alone: the
+`go.mod` supplies whichever half you omit.)
+
+The `app-contract` CI job renders exactly the invocation above and asserts both
+properties the flags exist to control — that `importpath` is the module path
+joined with the package path, and that `--host-oci=no` emits no `go_image`.
 
 ## The gazelle contract
 
@@ -53,7 +72,8 @@ monorepo it lands in already gates on stale BUILD files, so if the stamped file
 is not a gazelle fixed point, every stamping PR arrives red no matter how good
 the rendering is. The `app-contract` CI job proves the property on every push by
 rendering a monorepo, normalizing it, stamping three applications in, running
-gazelle, and failing on any diff.
+gazelle, and failing on any diff — and it does that for **each of two hosts**
+(`go` and `copybara-go`), so six stampings are checked in all.
 
 Two of gazelle's Go conventions are properties of the **destination**, not of
 the application, so neither can be hard-coded in the template:
@@ -103,7 +123,9 @@ so it supplies the destination-derived values (`import_path`, `package_path`,
 there too, or the smoke passes on output that could never build.
 
 It renders every sampled selection **twice**, once per `host_oci` branch, because
-the template branches on it and an unrendered branch is an unchecked branch.
+the template branches on it and an unrendered branch is an unchecked branch
+(44 renders in all). What that proves is the *syntax* of both branches, not the
+gate semantics — the `copybara-go` leg of the `app-contract` job proves the gate.
 
 Its BUILD.bazel assertion checks for a target *named* after the project
 (`name = "<project>`), not merely for the project name appearing somewhere in
