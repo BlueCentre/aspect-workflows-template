@@ -210,9 +210,89 @@ jobs:
           story="$GITHUB_WORKSPACE/user_stories/${{ matrix.preset }}.md"
           if [ -f "$story" ]; then sh "$story"; else echo "no user story for ${{ matrix.preset }} — skipping"; fi
 
-  # Stable name for branch protection: "all matrix legs passed".
+  # The application-composition contract and its render smoke, plus the one
+  # property that decides whether the initializer is usable at all: a stamped
+  # application's BUILD file must be exactly what gazelle would generate.
+  #
+  # Ordered cheapest-first. check-metadata and check-renders need no bazel, so
+  # they return a verdict in seconds and fail fast on a bad contract. The
+  # gazelle proof does need bazel -- there is no way to ask gazelle what it
+  # would generate without building it -- so it runs last, and independently of
+  # the preset matrix so a broken contract does not wait on 18 preset builds.
+  app-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Aspect CLI
+        uses: aspect-build/setup-aspect@36c688a9bbb0c84d55d7eca31bf3215e9d265bff # v2026.24.1
+        with:
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+
+      - name: Validate the application metadata contract
+        run: aspect check-metadata
+
+      - name: Render sampled selections and inspect the output
+        run: aspect check-renders
+
+      # Render a monorepo, NORMALIZE it, commit that as the baseline, then stamp
+      # applications in and re-run gazelle. The normalize pass is what isolates
+      # the property under test: a freshly rendered preset is not itself a
+      # gazelle fixed point (jinja conditionals leave blank lines gazelle
+      # reflows), and the preset matrix above already normalizes before it
+      # asserts. Without the baseline commit this job would fail on the host
+      # template's whitespace and never say anything about the application.
+      #
+      # Three stampings, because the BUILD file's shape depends on the
+      # destination, not on the application: `payments` under app/ is the happy
+      # path, `payments_api` proves a snake_case name does not drift into
+      # kebab-case target names, and `services/billing` proves the import path
+      # tracks where the application actually lands.
+      - name: Prove a stamped application is a gazelle fixed point
+        run: |
+          set -euo pipefail
+          mono="$RUNNER_TEMP/mono"
+          aspect render-preset --preset=go --out="$mono" --name=my_project
+          cd "$mono"
+          git init -q
+          git add -A
+          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "rendered"
+          aspect gazelle --task:name gazelle-app-baseline \
+            --github-status-comments:enabled=false --github-status-checks:enabled=false \
+            --check-only=false
+          git add -A
+          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
+
+          cd "$GITHUB_WORKSPACE"
+          aspect render-app --language=go --name=payments     --out="$mono/app/payments"
+          aspect render-app --language=go --name=payments_api --out="$mono/app/payments_api"
+          aspect render-app --language=go --name=billing      --out="$mono/services/billing"
+
+          cd "$mono"
+          git add -A
+          git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"
+          aspect gazelle --task:name gazelle-app-fixedpoint \
+            --github-status-comments:enabled=false --github-status-checks:enabled=false \
+            --check-only=false
+          # The verdict. Any diff means gazelle disagreed with what we stamped,
+          # which is the same red the target monorepo's stale-BUILD gate would
+          # show on the first stamping PR. Do NOT silence it with
+          # `# gazelle:ignore` -- that hides exactly what this exists to catch.
+          git diff --exit-code
+
+      # A fixed point that does not build is worthless: assert the stamped
+      # applications compile, their tests pass, and their images assemble.
+      - name: Build and test the stamped applications
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mono"
+          bazel test //app/... //services/...
+
+  # Stable name for branch protection: "every preset leg and the application
+  # contract passed". app-contract is aggregated here rather than required on
+  # its own so branch protection keeps a single check to name.
   conclusion:
-    needs: preset
+    needs: [preset, app-contract]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -221,4 +301,7 @@ jobs:
           if [ "${{ contains(needs.preset.result, 'failure') || needs.preset.result == 'failure' }}" = "true" ]; then
             echo "one or more presets failed" && exit 1
           fi
-          echo "all presets passed"
+          if [ "${{ needs.app-contract.result }}" != "success" ]; then
+            echo "the application contract job did not pass (${{ needs.app-contract.result }})" && exit 1
+          fi
+          echo "all presets and the application contract passed"

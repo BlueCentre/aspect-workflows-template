@@ -2,5 +2,5 @@
 
 Stamped by the application initializer.
 
-    bazel run //app/{{ project_kebab }}
-    bazel test //app/{{ project_kebab }}:all
+    bazel run //app/{{ project_snake }}
+    bazel test //app/{{ project_snake }}:all

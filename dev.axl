@@ -91,6 +91,70 @@ check_metadata = task(
     args = {},
 )
 
+# --- the gazelle contract ----------------------------------------------------
+#
+# gazelle owns a stamped application's BUILD file the moment it lands, so the
+# file we write has to be exactly what gazelle would generate -- otherwise the
+# first `aspect gazelle` run in the host monorepo rewrites it and the stamping
+# PR arrives red against that repo's stale-BUILD gate.
+#
+# Two of gazelle's Go conventions are properties of the DESTINATION, not of the
+# application, so neither can be guessed inside the template:
+#
+#   * target names come from the directory the package sits in, verbatim
+#     (app/payments_api -> payments_api_lib, payments_api, payments_api_test).
+#     Guessing kebab-case there does not merely rename the targets -- gazelle
+#     ADDS its own go_library/go_test beside them and re-points the go_binary,
+#     leaving two libraries over the same srcs.
+#   * importpath is the host module's path joined with the package's path
+#     relative to that module (example.com/my_project + app/payments), so it
+#     depends on the monorepo being stamped into and on where in it the
+#     application lands -- `app/`, `services/`, anywhere.
+#
+# Both are therefore computed here from --out and handed to the template as one
+# `import_path` value, and the directory-name rule is enforced rather than
+# hoped for.
+
+def _absolute(ctx, path):
+    if path.startswith("/"):
+        return path
+    return ctx.std.env.current_dir() + "/" + path
+
+def _path_segments(path):
+    segs = []
+    for s in path.split("/"):
+        if s == "" or s == ".":
+            continue
+        if s == "..":
+            if segs:
+                segs.pop()
+            continue
+        segs.append(s)
+    return segs
+
+def _host_module(ctx, out_abs, name):
+    """Return (module_path, package_path) for the monorepo --out lands in.
+
+    Walks up from --out for the nearest go.mod -- that directory is the host
+    module root, and everything below it is the package path gazelle will use.
+    Falls back to the self-contained `example.com/<name>` + `app/<name>` shape
+    when there is no go.mod above --out (rendering to a scratch dir).
+    """
+    segs = _path_segments(out_abs)
+    rel = []
+    for _ in range(len(segs) + 1):
+        if not segs:
+            break
+        gomod = "/" + "/".join(segs) + "/go.mod"
+        if ctx.std.fs.exists(gomod):
+            for line in ctx.std.fs.read_to_string(gomod).split("\n"):
+                line = line.strip()
+                if line.startswith("module "):
+                    return (line[len("module "):].strip(), "/".join(rel))
+            break
+        rel.insert(0, segs.pop())
+    return ("example.com/" + name, "app/" + name)
+
 def _render_app_impl(ctx):
     repo_dir = ctx.std.env.current_dir()
     config = load_config(ctx, repo_dir)
@@ -129,6 +193,20 @@ def _render_app_impl(ctx):
 
     flags = app_flags(app, language, concerns, framework, target_name, db_provider)
 
+    # See "the gazelle contract" above: the BUILD file's target names and
+    # importpath are properties of where the application lands, so resolve them
+    # from --out before rendering.
+    out_abs = _absolute(ctx, ctx.args.out)
+    out_base = _path_segments(out_abs)[-1]
+    if out_base != ctx.args.name:
+        fail(("--out must end in a directory named after the application: gazelle names Go " +
+              "targets after the directory, so stamping {!r} into .../{} produces a BUILD file " +
+              "gazelle immediately rewrites. Use --out=.../{}").format(ctx.args.name, out_base, ctx.args.name))
+    module_path, package_path = _host_module(ctx, out_abs, ctx.args.name)
+    if ctx.args.module_path != "":
+        module_path = ctx.args.module_path
+    flags["import_path"] = module_path + "/" + package_path
+
     # The app section carries its own rules/no_render/executable because globs are
     # matched relative to the template_dir passed below, not to template/.
     app_render_config = {
@@ -160,8 +238,12 @@ render_app = task(
         "deploy_target": args.string(default = "homelab", description = "Deploy target (see app.deploy_targets)"),
         "db_provider": args.string(default = "", description = "Database provider; defaults to the target's default"),
         "http_framework": args.string(default = "", description = "HTTP framework; defaults to the language's default"),
+        "module_path": args.string(default = "", description = "Host Go module path; defaults to the module declared by the nearest go.mod above --out"),
     },
 )
+
+# The project name tier 2 stamps every sampled selection under.
+_SMOKE_NAME = "smoke_app"
 
 def _check_renders_impl(ctx):
     repo_dir = ctx.std.env.current_dir()
@@ -189,10 +271,17 @@ def _check_renders_impl(ctx):
         flags = app_flags(app, language, concerns,
                           fw["default"] if fw else "",
                           "homelab", target["default_db_provider"])
+
+        # render-app resolves import_path from the host monorepo (see "the
+        # gazelle contract"); tier 2 renders into a scratch dir with no host, so
+        # it supplies the same key with the no-host fallback shape. Without it
+        # the templates would emit an empty importpath and the smoke would pass
+        # on output that could never build.
+        flags["import_path"] = "example.com/" + _SMOKE_NAME + "/app/" + _SMOKE_NAME
         out = base_out + "/" + language + "-" + str(checked)
         ctx.std.fs.create_dir_all(out)
         template_dir = repo_dir + "/template/" + app["languages"][language]["template_dir"]
-        written = render(ctx, app_render_config, template_dir, out, "smoke_app", flags)
+        written = render(ctx, app_render_config, template_dir, out, _SMOKE_NAME, flags)
 
         if not written:
             failures.append("{} [{}]: rendered zero files".format(label, language))
@@ -200,7 +289,7 @@ def _check_renders_impl(ctx):
             content = ctx.std.fs.read_to_string(out + "/" + rel)
             if "{{" in content or "{%" in content:
                 failures.append("{} [{}]: {} still contains unrendered Jinja".format(label, language, rel))
-            if "smoke_app" not in content and rel == "BUILD.bazel":
+            if _SMOKE_NAME not in content and rel == "BUILD.bazel":
                 failures.append("{} [{}]: BUILD.bazel never substituted the project name".format(label, language))
         checked += 1
 
