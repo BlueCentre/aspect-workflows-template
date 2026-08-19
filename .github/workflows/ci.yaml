@@ -322,12 +322,38 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             aspect render-preset --preset="$preset" --out="$mono" --name=my_project
             cd "$mono"
+            # Materialize MODULE.bazel.lock BEFORE anything invokes bazel. The
+            # template ships no lockfile, and the rendered repo's own preset
+            # bazelrc sets `common:ci --lockfile_mode=error` (.aspect/config.axl
+            # adds --config=ci whenever $CI is set), so the very first bazel
+            # call -- building //tools/gazelle:gazelle -- dies with "Missing
+            # checksum for registry file ... not permitted with
+            # --lockfile_mode=error" before gazelle ever runs. The preset matrix
+            # solves this in its own normalize step; this job skipped it.
+            # `|| true` mirrors that step verbatim.
+            #
+            # It runs before the baseline commit, so the lockfile is part of the
+            # baseline rather than an untracked file the post-stamping
+            # `git diff --cached` would report as an application defect.
+            bazel mod deps --lockfile_mode=update || true
             git init -q
             git add -A
             git -c user.email=ci@aspect.build -c user.name=CI commit -qm "rendered"
+            # `|| true`: with --check-only=false gazelle APPLIES its changes and
+            # still exits 1 to report that the files had been out of date, which
+            # a freshly rendered preset always is (jinja conditionals leave
+            # blank lines gazelle reflows). The preset matrix tolerates it the
+            # same way. That tolerance would also swallow a genuine gazelle
+            # failure, so the next line re-runs gazelle in CHECK mode with no
+            # `|| true`: the baseline must be a PROVEN fixed point before a
+            # single application is stamped, or the comparison below means
+            # nothing.
             aspect gazelle --task:name "gazelle-app-baseline-$preset" \
               --github-status-comments:enabled=false --github-status-checks:enabled=false \
-              --check-only=false
+              --check-only=false || true
+            aspect gazelle --task:name "gazelle-app-baseline-verify-$preset" \
+              --github-status-comments:enabled=false --github-status-checks:enabled=false \
+              --severity=fail --check-only=true
             git add -A
             git -c user.email=ci@aspect.build -c user.name=CI commit -qm "normalized" --allow-empty
 
