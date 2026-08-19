@@ -1,0 +1,10 @@
+# Tasks this repo exposes through the Aspect CLI.
+#
+# The application initializer engine under `tools/initializer/` is authored in
+# aspect-workflows-template and shipped verbatim into every repo stamped from it
+# (ADR-026), so the tasks below are the same code that runs in the template repo.
+# Add this repo's own `use_task(...)` / `axl_archive_dep(...)` entries alongside
+# them; the initializer lines are the only ones the template owns.
+use_task("tools/initializer/tasks.axl", "render_app")
+use_task("tools/initializer/tasks.axl", "check_metadata")
+use_task("tools/initializer/tasks.axl", "check_renders")

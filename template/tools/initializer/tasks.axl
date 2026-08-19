@@ -67,6 +67,26 @@ check_metadata = task(
     args = {},
 )
 
+def _render_config(app):
+    """The subset of the app contract render() consumes.
+
+    The app contract carries its OWN rules/no_render/executable because globs are
+    matched relative to the template_dir render() is given, not to `template/`;
+    and its own `template_suffix` because its templates ship inside a live repo
+    and so cannot be named after their output (see render.axl:_output_rel).
+
+    Built here, once, because render-app and check-renders must pass the SAME
+    config: when they drifted, check-renders kept rendering `BUILD.bazel.tmpl`
+    and its "BUILD.bazel names a target after the project" assertion stopped
+    matching any file -- passing green while checking nothing.
+    """
+    return {
+        "rules": app["rules"],
+        "no_render": app["no_render"],
+        "executable": app["executable"],
+        "template_suffix": app.get("template_suffix", ""),
+    }
+
 # --- the gazelle contract ----------------------------------------------------
 #
 # gazelle owns a stamped application's BUILD file the moment it lands, so the
@@ -244,13 +264,7 @@ def _render_app_impl(ctx):
         host_oci = "yes" if ctx.std.fs.exists(root + "/bazel/oci/go_image.bzl") else "no"
     flags["host_oci"] = host_oci == "yes"
 
-    # The app contract carries its own rules/no_render/executable because globs
-    # are matched relative to the template_dir passed below, not to template/.
-    app_render_config = {
-        "rules": app["rules"],
-        "no_render": app["no_render"],
-        "executable": app["executable"],
-    }
+    app_render_config = _render_config(app)
     template_dir = base + "/" + app["languages"][language]["template_dir"]
 
     # The CANONICAL path, never ctx.args.out: this is the destructive call, and
@@ -295,7 +309,7 @@ def _check_renders_impl(ctx):
             ctx.std.io.stdout.write("  - {}\n".format(p))
         fail("application metadata contract is invalid; run `aspect check-metadata`")
 
-    app_render_config = {"rules": app["rules"], "no_render": app["no_render"], "executable": app["executable"]}
+    app_render_config = _render_config(app)
     base_out = ctx.args.out_dir
     if ctx.std.fs.exists(base_out):
         ctx.std.fs.remove_dir_all(base_out)

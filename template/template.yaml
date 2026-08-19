@@ -462,6 +462,22 @@ spec:
       action: fetch:template
       input:
         url: ./skeleton
+        # tools/initializer/ is the application initializer engine: a jinja2
+        # TEMPLATE tree, not source. Its files carry placeholders that
+        # `aspect render-app` substitutes LATER, from inside the scaffolded
+        # repo. fetch:template Nunjucks-renders skeleton/** right now, and
+        # Nunjucks renders an undefined name as the empty string -- so without
+        # this the engine would arrive with every placeholder erased.
+        #
+        # copyWithoutTemplating copies matched files' CONTENTS verbatim; paths
+        # are still rendered, which is fine because no path under
+        # tools/initializer/ contains a placeholder. It is the key the action
+        # actually reads: @backstage/plugin-scaffolder-backend 4.0.2 still
+        # accepts the deprecated copyWithoutRender in its input schema but
+        # never looks at it (see resolveTemplateActionSettings in
+        # dist/scaffolder/actions/builtin/fetch/templateActionHandler.cjs.js).
+        copyWithoutTemplating:
+          - 'tools/initializer/**'
         values:
           name: ${{ '{{' }} parameters.name {{ '}}' }}
           description: ${{ '{{' }} parameters.description {{ '}}' }}

@@ -1020,8 +1020,7 @@
       "flag": "backstage",
       "globs": [
         "template.yaml",
-        "skeleton/**",
-        ".bazelignore"
+        "skeleton/**"
       ]
     },
     {
@@ -1086,10 +1085,8 @@
     }
   ],
   "no_render": [
-    "tools/initializer/app/**",
-    "tools/initializer/engine/*.axl",
-    "tools/initializer/tasks.axl",
-    "tools/initializer/config.json",
+    "tools/initializer/**",
+    "MODULE.aspect",
     "LICENSE",
     "Cargo.lock",
     "Gemfile.lock",

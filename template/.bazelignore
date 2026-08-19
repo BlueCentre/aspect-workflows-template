@@ -1,1 +1,2 @@
-skeleton
+{% if backstage %}skeleton
+{% endif %}tools/initializer
