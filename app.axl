@@ -1,0 +1,97 @@
+"""Application-side contract: loading, validation, and flag construction.
+
+Repo stamping (render-preset, template/) composes a whole monorepo. Application
+stamping composes ONE application inside an existing monorepo -- a different
+product (see the design spec, section 1), so it gets its own section of
+template-config.json and its own rules/no_render/executable arrays. Globs are
+matched relative to whichever template_dir render() is given, which is why the
+two cannot share one array.
+"""
+
+APP_KEY = "app"
+
+def app_config(config):
+    """Return the `app` section, failing loudly if the contract is missing."""
+    if APP_KEY not in config:
+        fail("template-config.json has no {!r} section; the application initializer cannot run".format(APP_KEY))
+    return config[APP_KEY]
+
+def _require_keys(where, obj, keys, problems):
+    for k in keys:
+        if k not in obj:
+            problems.append("{}: missing required key {!r}".format(where, k))
+
+def validate_app_config(config):
+    """Return a list of problems with the `app` section. Empty means valid.
+
+    Pure: takes the parsed config, returns strings. No ctx, no filesystem, so it
+    is callable from a check task and from any future consumer.
+    """
+    problems = []
+    if APP_KEY not in config:
+        return ["template-config.json has no {!r} section".format(APP_KEY)]
+    app = config[APP_KEY]
+
+    _require_keys("app", app, ["languages", "concerns", "deploy_targets", "presets", "rules", "no_render", "executable"], problems)
+    if problems:
+        return problems
+
+    languages = app["languages"]
+    concerns = app["concerns"]
+
+    # Every concern's requires must name a real concern, and appliesTo a real language.
+    for name in sorted(concerns.keys()):
+        spec = concerns[name]
+        for req in spec.get("requires", []):
+            if req not in concerns:
+                problems.append("concern {!r}: requires unknown concern {!r}".format(name, req))
+        for lang in spec.get("appliesTo", []):
+            if lang not in languages:
+                problems.append("concern {!r}: appliesTo unknown language {!r}".format(name, lang))
+
+    # The requires graph must be acyclic. Starlark has no recursion, so resolve by
+    # repeated relaxation: a concern is "settled" once all its requires are settled.
+    settled = {}
+    for _ in range(100):
+        progressed = False
+        for name in sorted(concerns.keys()):
+            if name in settled:
+                continue
+            reqs = [r for r in concerns[name].get("requires", []) if r in concerns]
+            if all([r in settled for r in reqs]):
+                settled[name] = True
+                progressed = True
+        if not progressed:
+            break
+    for name in sorted(concerns.keys()):
+        if name not in settled:
+            problems.append("concern {!r}: requires graph is cyclic or unresolvable".format(name))
+
+    # Each language must point at a template directory.
+    for name in sorted(languages.keys()):
+        _require_keys("language {!r}".format(name), languages[name], ["label", "template_dir"], problems)
+
+    # Deploy targets: the default provider must be one of the offered providers.
+    for name in sorted(app["deploy_targets"].keys()):
+        target = app["deploy_targets"][name]
+        _require_keys("deploy_target {!r}".format(name), target, ["label", "db_providers", "default_db_provider"], problems)
+        if "db_providers" in target and "default_db_provider" in target:
+            if target["default_db_provider"] not in target["db_providers"]:
+                problems.append("deploy_target {!r}: default_db_provider {!r} is not in db_providers {}".format(
+                    name, target["default_db_provider"], target["db_providers"]))
+
+    # Presets must name a real language and real concerns, closed under requires.
+    for name in sorted(app["presets"].keys()):
+        preset = app["presets"][name]
+        _require_keys("preset {!r}".format(name), preset, ["language", "concerns"], problems)
+        if "language" in preset and preset["language"] not in languages:
+            problems.append("preset {!r}: unknown language {!r}".format(name, preset["language"]))
+        for c in preset.get("concerns", []):
+            if c not in concerns:
+                problems.append("preset {!r}: unknown concern {!r}".format(name, c))
+                continue
+            for req in concerns[c].get("requires", []):
+                if req not in preset["concerns"]:
+                    problems.append("preset {!r}: concern {!r} requires {!r}, which the preset omits".format(name, c, req))
+
+    return problems

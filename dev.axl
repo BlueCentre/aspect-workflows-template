@@ -8,6 +8,7 @@ here proves the template renders. It's also what the CI matrix and the
 """
 
 load("./render.axl", "load_config", "preset_flags", "render")
+load("./app.axl", "validate_app_config")
 
 # Backstage presets ship a software-template (template.yaml) whose `skeleton/`
 # must contain a concrete copy of the rendered project so Backstage's scaffolder
@@ -69,4 +70,23 @@ render_preset = task(
         "name": args.string(default = "my_project", description = "Project name (snake_case)"),
         "license": args.string(default = "none", values = ["Apache-2.0", "none"], description = "License to scaffold; defaults to 'none'. Pass 'Apache-2.0' to include it."),
     },
+)
+
+def _check_metadata_impl(ctx):
+    repo_dir = ctx.std.env.current_dir()
+    config = load_config(ctx, repo_dir)
+    problems = validate_app_config(config)
+    if problems:
+        ctx.std.io.stdout.write("check-metadata: {} problem(s)\n".format(len(problems)))
+        for p in problems:
+            ctx.std.io.stdout.write("  - {}\n".format(p))
+        fail("application metadata contract is invalid")
+    ctx.std.io.stdout.write("check-metadata: OK\n")
+    return 0
+
+check_metadata = task(
+    kind = "check-metadata",
+    summary = "Validate the application metadata contract in template-config.json",
+    implementation = _check_metadata_impl,
+    args = {},
 )
