@@ -428,6 +428,90 @@ jobs:
           fi
           echo "explicit-flags convention: importpath and host_oci both honoured"
 
+      # The two DESTINATION conventions no preset host can exercise. Every
+      # preset this repo renders leaves `# gazelle:build_file_name` unset and
+      # renders `# gazelle:prefix` from the same project name as its go.mod, so
+      # the two always agree here -- a hardcoded convention passes every other
+      # step in this job and is wrong the first time the engine meets a real
+      # monorepo. It was: VitruvianSoftware/vitruvian-core#1809, a host that
+      # writes `BUILD` and whose go.mod had outlived its scaffold identity.
+      # gazelle ignored the stamped `BUILD.bazel` entirely, wrote a second,
+      # competing `BUILD` beside it, and disagreed on importpath.
+      #
+      # Purpose-built scratch hosts, not presets: the properties are read off
+      # the host's ROOT BUILD FILE, so a host needs only a go.mod and that file.
+      # No bazel, seconds to run. What gazelle itself does with the directives is
+      # gazelle's own behaviour and is not re-proven here; what IS proven forever
+      # is that the engine READS them and mirrors gazelle's precedence
+      # (`# gazelle:prefix` OUTRANKS the go.mod module path -- the go.mod here
+      # says something else on purpose, and losing is the assertion).
+      #
+      # Both spellings of the root build file are covered, because a host that
+      # renames its build files has usually renamed its own root one too, and
+      # that is the harder probe: there is no `BUILD.bazel` to find.
+      #
+      # The third leg is the regression guard for every starter and the reason
+      # this is safe to ship: a host with NEITHER directive must still get
+      # `BUILD.bazel` and the go.mod module path, unchanged.
+      #
+      # Run embedded, from inside a starter: the engine users have is the one
+      # that has to honour this.
+      - name: Honour the host's gazelle build-file name and import prefix
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mono-go"
+
+          for rootfile in BUILD.bazel BUILD; do
+            host="$RUNNER_TEMP/convhost-$rootfile"
+            rm -rf "$host"
+            mkdir -p "$host"
+            printf 'module example.com/stale_scaffold_identity\n\ngo 1.24\n' > "$host/go.mod"
+            printf '# gazelle:build_file_name BUILD\n# gazelle:prefix example.com/custom_prefix\n' > "$host/$rootfile"
+
+            aspect render-app --language=go --name=conv_probe --out="$host/app/conv_probe"
+            app="$host/app/conv_probe"
+
+            if [ ! -f "$app/BUILD" ]; then
+              echo "root $rootfile declares '# gazelle:build_file_name BUILD' but no BUILD was written:"
+              ls -1 "$app"
+              exit 1
+            fi
+            if [ -f "$app/BUILD.bazel" ]; then
+              echo "root $rootfile declares '# gazelle:build_file_name BUILD' but BUILD.bazel is still there;"
+              echo "gazelle would ignore it and write a competing BUILD, leaving the tree permanently dirty."
+              ls -1 "$app"
+              exit 1
+            fi
+            if ! grep -qF 'importpath = "example.com/custom_prefix/app/conv_probe"' "$app/BUILD"; then
+              echo "root $rootfile declares '# gazelle:prefix example.com/custom_prefix', which OUTRANKS the go.mod module path:"
+              grep -n importpath "$app/BUILD" || echo "  (no importpath at all)"
+              exit 1
+            fi
+            echo "host conventions honoured (root build file: $rootfile)"
+          done
+
+          # Negative control: neither directive -> gazelle's own defaults, which
+          # is exactly what every starter gets. If this ever changes, the fix
+          # has stopped being additive.
+          host="$RUNNER_TEMP/convhost-none"
+          rm -rf "$host"
+          mkdir -p "$host"
+          printf 'module example.com/plain_host\n\ngo 1.24\n' > "$host/go.mod"
+          printf '"""root"""\n' > "$host/BUILD.bazel"
+          aspect render-app --language=go --name=plain_probe --out="$host/app/plain_probe"
+          app="$host/app/plain_probe"
+          if [ ! -f "$app/BUILD.bazel" ] || [ -f "$app/BUILD" ]; then
+            echo "a host with no gazelle directives must still get BUILD.bazel:"
+            ls -1 "$app"
+            exit 1
+          fi
+          if ! grep -qF 'importpath = "example.com/plain_host/app/plain_probe"' "$app/BUILD.bazel"; then
+            echo "a host with no '# gazelle:prefix' must fall back to the go.mod module path:"
+            grep -n importpath "$app/BUILD.bazel" || echo "  (no importpath at all)"
+            exit 1
+          fi
+          echo "no directives: BUILD.bazel + go.mod module path, unchanged"
+
       # The verdict this job exists for, run the way a user runs it: from the
       # starter's own root, with the starter's own engine, no flags -- every
       # destination property is derived from the repo the command is standing

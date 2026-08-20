@@ -49,10 +49,10 @@ Two rules `render-app` enforces rather than assumes:
 - **`--out` must end in a directory named after the application.** Not a style
   rule — see [the gazelle contract](#the-gazelle-contract).
 - **`--out` must be inside the target monorepo**, or you must describe that
-  monorepo with the flags below. `render-app` reads the destination's `go.mod`;
-  it will not invent one. Stamping onto a directory that is *itself* a module
-  root is refused, because `--out` is cleared before rendering and that would
-  delete the `go.mod` just read. The refusal compares normalized path
+  monorepo with the flags below. `render-app` reads the destination's `go.mod`
+  and its root build file; it will not invent either. Stamping onto a directory
+  that is *itself* a module root is refused, because `--out` is cleared before
+  rendering and that would delete the `go.mod` just read. The refusal compares normalized path
   *segments*, so no spelling of the module root (`<root>/`, `<root>/.`,
   `<root>/x/..`) can slip past it; CI proves all of them, and proves the host
   survives the refusal.
@@ -92,9 +92,33 @@ alone is not enough — a repo mid-migration could carry one without the other.
 
 | flag | meaning | default |
 |---|---|---|
-| `--module-path` | the host monorepo's Go module path | the `module` line of the nearest `go.mod` at or above `--out` |
+| `--module-path` | the Go import prefix the stamped package's `importpath` is built from | the host's root `# gazelle:prefix`, else the `module` line of the nearest `go.mod` at or above `--out` (see below) |
 | `--package-path` | the application's path **relative to that module root** — this is where the PR will put it, which need not match `--out` | `--out`'s path relative to that same `go.mod` |
 | `--host-oci` | whether the host ships `bazel/oci/go_image.bzl` and enables the `go_image` gazelle extension | `auto`, which probes the host root |
+
+Two further destination properties have **no flag at all** — they are read off
+the host's root build file (`BUILD.bazel`, else `BUILD`), the same way
+`--host-oci=auto` probes for `bazel/oci/go_image.bzl` and `--module-path` reads
+`go.mod`. Absent, both fall back to gazelle's own defaults, which is why every
+starter renders exactly as it did before they existed:
+
+| directive in the host's root build file | what it changes | absent |
+|---|---|---|
+| `# gazelle:build_file_name <names>` | the name the app's build file is written under — the **first** name on the list, because that is the one gazelle creates a new package's build file with | `BUILD.bazel` |
+| `# gazelle:prefix <prefix>` | the Go import prefix `importpath` is built from | the `module` line of the nearest `go.mod` at or above `--out` |
+
+The design rule for both — and the one to apply to any future host convention —
+is **mirror gazelle's own precedence**. `# gazelle:prefix` outranks the `go.mod`
+module path *in gazelle*, so it outranks it here; an explicit `--module-path`
+outranks both, because it is the operator saying the host on disk is not the
+destination. Whatever gazelle would do to the stamped package is what the engine
+must emit, since gazelle gets the last word the moment the stamping PR lands.
+
+Only the **root** build file is read. gazelle inherits directives down the tree
+and a subdirectory may override either one; reading the whole chain would mean
+reimplementing gazelle's configuration walk inside a template engine. The root
+is where a monorepo declares repo-wide conventions, and `--module-path` covers
+the rest — a narrower answer than gazelle's, never a different one.
 
 `--package-path` is not cosmetic: it feeds both `importpath` and the labels in
 the generated `README.md`. **`--module-path` and `--package-path` come as a
@@ -180,20 +204,36 @@ rendered repo's own embedded engine**, running gazelle, and failing on any diff
 — and it does that for **each of two hosts** (`go` and `copybara-go`), so six
 stampings are checked in all.
 
-Two of gazelle's Go conventions are properties of the **destination**, not of
-the application, so neither can be hard-coded in the template:
+Three of gazelle's Go conventions are properties of the **destination**, not of
+the application, so none of them can be hard-coded in the template:
 
 - **Target names come from the directory**, verbatim. `app/payments_api` yields
   `payments_api_lib`, `payments_api`, `payments_api_test`. Guessing kebab-case
   there does not merely rename the targets: gazelle adds its own
   `go_library`/`go_test` beside the stamped ones and re-points the `go_binary`,
   leaving two libraries over the same sources. Hence the `--out` basename check.
-- **`importpath` is the host module path joined with the package path** relative
-  to that module — `example.com/my_project` + `app/payments`. `render-app` reads
-  it from the nearest `go.mod` above `--out`; `--module-path` overrides that when
-  there is no `go.mod` to read yet.
+- **`importpath` is the host's import prefix joined with the package path**
+  relative to the module root — `example.com/my_project` + `app/payments`.
+  `render-app` takes the prefix from the host's root `# gazelle:prefix` if it
+  declares one, else from the nearest `go.mod` above `--out`; `--module-path`
+  overrides both.
+- **The build file's NAME is the host's**, from its root
+  `# gazelle:build_file_name`. gazelle only *reads* a build file whose name is on
+  that list, so a host that declares `BUILD` does not see a stamped `BUILD.bazel`
+  at all: it writes a second, competing `BUILD` beside it, leaving two build
+  files over one package and a permanently dirty tree that the host's
+  stale-BUILD gate fails on forever.
 
-A third convention is a property of the host's gazelle **configuration**: the
+Neither of the last two can be observed from a starter this repo renders — every
+preset leaves `build_file_name` unset and renders `# gazelle:prefix` from the
+same project name as its `go.mod`, so the two always agree. Both were found by
+stamping into a real monorepo whose `go.mod` had outlived its scaffold identity
+([vitruvian-core#1809](https://github.com/VitruvianSoftware/vitruvian-core/issues/1809)),
+and both are now gated in `app-contract` against purpose-built scratch hosts —
+including a negative control with neither directive, which is what keeps starter
+behaviour byte-identical.
+
+A fourth convention is a property of the host's gazelle **configuration**: the
 `go_image` Orion extension (`.aspect/gazelle/go_image.axl`) generates a
 `go_image` target for every package containing a `func main` — but only the
 presets that ship `bazel/oci/` enable it. So the template emits the target
