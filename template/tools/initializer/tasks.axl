@@ -255,7 +255,7 @@ def _host_gazelle_conventions(ctx, root):
         break
     return (build_file_name, prefix)
 
-def _apply_build_file_name(ctx, out_abs, written, build_file_name):
+def _apply_build_file_name(ctx, language, out_abs, written, build_file_name):
     """Rename the rendered build file to the host's write-name.
 
     Done after render() rather than inside it: the renderer is template-agnostic
@@ -277,10 +277,17 @@ def _apply_build_file_name(ctx, out_abs, written, build_file_name):
     # host's convention and the template's file set genuinely conflict, and only
     # a human can say which one should move.
     if build_file_name in written:
+        # CLEAR --out FIRST. Failing here would otherwise leave a fully stamped
+        # directory behind with its build file under the WRONG name -- a trap for
+        # the P1 calling convention, where a frontend renders to a scratch dir
+        # and opens a PR from whatever it finds there, so a refusal nobody reads
+        # becomes a merged, broken package. Safe to clear: --out was already
+        # adjudicated as not a module root, and this command is what populated it.
+        ctx.std.fs.remove_dir_all(out_abs)
         fail(("the host's `# gazelle:build_file_name {}` collides with a file the {} app " +
               "template already renders, so writing the build file there would destroy it. " +
               "Rename the template's file or the host's build-file convention.").format(
-            build_file_name, out_abs.rsplit("/", 1)[-1]))
+            build_file_name, language))
 
     ctx.std.fs.rename(out_abs + "/" + _DEFAULT_BUILD_FILE_NAME, out_abs + "/" + build_file_name)
     return [build_file_name if w == _DEFAULT_BUILD_FILE_NAME else w for w in written]
@@ -464,7 +471,7 @@ def _render_app_impl(ctx):
     # The host's `# gazelle:build_file_name`, applied last so `written` -- and
     # therefore the log line below -- names the file that is actually on disk.
     if host_build_file_name != "":
-        written = _apply_build_file_name(ctx, out_abs, written, host_build_file_name)
+        written = _apply_build_file_name(ctx, language, out_abs, written, host_build_file_name)
 
     ctx.std.io.stdout.write("rendered {} app {!r} [{}] -> {} ({} files)\n".format(
         language, ctx.args.name, ", ".join(concerns) if concerns else "no concerns", out_abs, len(written)))

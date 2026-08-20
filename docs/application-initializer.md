@@ -158,9 +158,13 @@ Repeats are last-wins, as in gazelle. Three differences remain, all deliberate:
   trivially fixed.
 - **Empty values.** gazelle treats `# gazelle:prefix` with no value as *unsetting*
   the directive; here it is ignored, so an earlier non-empty value still stands.
-- **`# gazelle:go_prefix`.** The legacy spelling is not read. It has been
-  deprecated in gazelle for years; a host still using it gets the `go.mod`
-  fallback, which in practice is the same string.
+- **WORKSPACE-era prefix *rules*.** Before falling back to `go.mod`, gazelle also
+  consults the legacy `go_prefix("...")` rule and a `gazelle(prefix = "...")`
+  rule in the root build file. (There is no `# gazelle:go_prefix` *directive* —
+  the prefix has only ever been a directive under the name `prefix`.) Those are
+  rules, not comments, so reading them means parsing Starlark; a host still
+  declaring its prefix that way silently gets the `go.mod` fallback. Pass
+  `--module-path` on such a host.
 
 `--package-path` is not cosmetic: it feeds both `importpath` and the labels in
 the generated `README.md`. **`--module-path` and `--package-path` come as a

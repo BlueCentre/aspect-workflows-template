@@ -325,6 +325,15 @@ jobs:
             if [ "$preset" = "copybara-go" ]; then
               # sed to a temp file + mv rather than `sed -i`: portable, so this
               # exact script can be run locally on a mac to reproduce a CI red.
+              #
+              # DIAGNOSIS POINTER: this assumes copybara-go has no cross-package
+              # internal Go imports (true today -- no .go file names the module
+              # path). If a future preset change adds one, its `import` statement
+              # keeps the old prefix while gazelle rewrites the importpath, and
+              # the red surfaces HERE as a baseline-verify or `bazel test`
+              # failure in this job -- caused by the rewrite below, not by a bug
+              # in the preset. Rewrite the import statements too, or move the
+              # disagreeing prefix to a host without them.
               sed 's|^# gazelle:prefix .*|# gazelle:prefix example.com/prefix_disagrees_with_go_mod|' BUILD.bazel > BUILD.bazel.rewritten
               mv BUILD.bazel.rewritten BUILD.bazel
               grep -qF '# gazelle:prefix example.com/prefix_disagrees_with_go_mod' BUILD.bazel || {
