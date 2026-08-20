@@ -114,11 +114,53 @@ outranks both, because it is the operator saying the host on disk is not the
 destination. Whatever gazelle would do to the stamped package is what the engine
 must emit, since gazelle gets the last word the moment the stamping PR lands.
 
-Only the **root** build file is read. gazelle inherits directives down the tree
+#### Where "root" means, and what is not covered
+
+**"Root" is the Go module root** — the directory whose `go.mod` the walk up from
+`--out` stopped at — **not the repository root.** They are the same directory in
+every preset and in every host seen so far, but they need not be: a repo that
+keeps its `go.mod` in a subdirectory has its directives in a root build file the
+probe never reaches, and silently gets the pre-directive behaviour. That is
+deliberate, not an oversight — `prefix` and `--package-path` are both expressed
+relative to the module root, so anchoring them anywhere else would make the two
+halves of `importpath` disagree. Pass `--module-path` on such a host.
+
+Only that **one** build file is read. gazelle inherits directives down the tree
 and a subdirectory may override either one; reading the whole chain would mean
 reimplementing gazelle's configuration walk inside a template engine. The root
 is where a monorepo declares repo-wide conventions, and `--module-path` covers
 the rest — a narrower answer than gazelle's, never a different one.
+
+**`build_file_name` has no flag override.** `--module-path` can force the prefix
+half, but nothing forces the file name; a host that needs a name other than what
+its root directive says has to change the directive. Which also means that on a
+host with directives, `--module-path` yields a **mixed-source** result — prefix
+from the flag, file name from the host. That is the intended reading of "the
+flag says the host on disk is not the destination *for the import prefix*", but
+it is worth knowing when a stamped file lands under an unexpected name.
+
+A collision between `build_file_name` and a file the app template renders (say
+`# gazelle:build_file_name README.md`) is **refused**, not silently resolved:
+renaming onto it would destroy the template's file, and only a human can decide
+which of the two should move.
+
+#### Known divergences from gazelle's own parser
+
+The directive matcher reproduces gazelle's `^#\s*gazelle:(\w+)\s*(.*?)\s*$` —
+`#gazelle:prefix x`, `#   gazelle:prefix x` and a tab between keyword and value
+are all honoured, and `## gazelle:prefix x` is correctly *not* a directive.
+Repeats are last-wins, as in gazelle. Three differences remain, all deliberate:
+
+- **String literals.** gazelle matches against parsed comment *tokens*; this
+  matches raw lines, so a directive-shaped line inside a `"""..."""` literal is
+  honoured here and ignored by gazelle. Closing it means parsing Starlark inside
+  a template engine, and being wrong costs one gazelle rewrite — visible and
+  trivially fixed.
+- **Empty values.** gazelle treats `# gazelle:prefix` with no value as *unsetting*
+  the directive; here it is ignored, so an earlier non-empty value still stands.
+- **`# gazelle:go_prefix`.** The legacy spelling is not read. It has been
+  deprecated in gazelle for years; a host still using it gets the `go.mod`
+  fallback, which in practice is the same string.
 
 `--package-path` is not cosmetic: it feeds both `importpath` and the labels in
 the generated `README.md`. **`--module-path` and `--package-path` come as a

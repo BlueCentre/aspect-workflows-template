@@ -302,6 +302,41 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             aspect render-preset --preset="$preset" --out="$mono" --name=my_project
             cd "$mono"
+
+            # Make ONE host's `# gazelle:prefix` disagree with its go.mod, before
+            # the baseline commit. Presets render the two from the same project
+            # name, so without this every host in CI has them agreeing and the
+            # fixed-point step below cannot tell which one the engine read --
+            # which is exactly how the vitruvian-core failure got through.
+            #
+            # Doing it HERE rather than after stamping is what makes it free: the
+            # normalize pass immediately following rewrites the importpath of
+            # every non-ignored Go package to the new prefix, re-verifies in
+            # check mode with no `|| true`, and commits that as the baseline. The
+            # existing "gazelle fixed point" and "build and test" steps then
+            # prove the prefix half END-TO-END against real gazelle, with no new
+            # step and no extra bazel run. `go` is left alone as the control.
+            #
+            # This covers the PREFIX half only. gazelle's `build_file_name` half
+            # cannot be exercised the same way -- flipping it mid-repo makes
+            # gazelle write a second build file beside every existing one -- so
+            # it is proven by the directive step further down (engine behaviour)
+            # plus the one-time real-host evidence in the P1.1 report.
+            if [ "$preset" = "copybara-go" ]; then
+              # sed to a temp file + mv rather than `sed -i`: portable, so this
+              # exact script can be run locally on a mac to reproduce a CI red.
+              sed 's|^# gazelle:prefix .*|# gazelle:prefix example.com/prefix_disagrees_with_go_mod|' BUILD.bazel > BUILD.bazel.rewritten
+              mv BUILD.bazel.rewritten BUILD.bazel
+              grep -qF '# gazelle:prefix example.com/prefix_disagrees_with_go_mod' BUILD.bazel || {
+                echo "failed to rewrite the root # gazelle:prefix; the disagreement this host exists to create is absent."
+                exit 1
+              }
+              grep -qF 'module example.com/my_project' go.mod || {
+                echo "go.mod no longer says example.com/my_project, so the prefix no longer disagrees with it."
+                exit 1
+              }
+            fi
+
             # Materialize MODULE.bazel.lock BEFORE anything invokes bazel. The
             # template ships no lockfile, and the rendered repo's own preset
             # bazelrc sets `common:ci --lockfile_mode=error` (.aspect/config.axl
@@ -440,11 +475,19 @@ jobs:
       #
       # Purpose-built scratch hosts, not presets: the properties are read off
       # the host's ROOT BUILD FILE, so a host needs only a go.mod and that file.
-      # No bazel, seconds to run. What gazelle itself does with the directives is
-      # gazelle's own behaviour and is not re-proven here; what IS proven forever
-      # is that the engine READS them and mirrors gazelle's precedence
-      # (`# gazelle:prefix` OUTRANKS the go.mod module path -- the go.mod here
-      # says something else on purpose, and losing is the assertion).
+      # No bazel, seconds to run. This step gates the ENGINE's behaviour --
+      # that it reads the directives, in every spelling gazelle accepts, and
+      # mirrors gazelle's precedence (`# gazelle:prefix` OUTRANKS the go.mod
+      # module path -- the go.mod here says something else on purpose, and
+      # losing is the assertion).
+      #
+      # Agreement with real gazelle is proven elsewhere and split in two: the
+      # PREFIX half end-to-end by the copybara-go host, whose root prefix is
+      # rewritten to disagree with its go.mod before the baseline commit, so the
+      # fixed-point step below covers it; the BUILD_FILE_NAME half by the
+      # one-time real-host evidence in the P1.1 report (flipping build_file_name
+      # mid-repo makes gazelle write a second build file beside every existing
+      # one, which is not something a CI host can absorb cheaply).
       #
       # Both spellings of the root build file are covered, because a host that
       # renames its build files has usually renamed its own root one too, and
@@ -490,6 +533,70 @@ jobs:
             echo "host conventions honoured (root build file: $rootfile)"
           done
 
+          # Every whitespace spelling gazelle's own `^#\s*gazelle:(\w+)\s*(.*?)\s*$`
+          # accepts. Missing one is silent -- the host's build file looks normal
+          # and the engine quietly reverts to the pre-fix behaviour -- so each is
+          # asserted rather than assumed. `##` is the negative: a second `#` is
+          # not whitespace, so gazelle does not treat it as a directive either.
+          i=0
+          while IFS='|' read -r label directive expected; do
+            i=$((i + 1))
+            host="$RUNNER_TEMP/spelling-$i"
+            rm -rf "$host"
+            mkdir -p "$host"
+            printf 'module example.com/stale_scaffold\n\ngo 1.24\n' > "$host/go.mod"
+            printf '%b\n' "$directive" > "$host/BUILD.bazel"
+            aspect render-app --language=go --name=sp_probe --out="$host/app/sp_probe" > /dev/null
+            got=$(grep -h importpath "$host/app/sp_probe/"BUILD* | sed 's/.*= "//;s/".*//')
+            if [ "$got" != "$expected" ]; then
+              echo "directive spelling '$label' -- expected importpath prefix '$expected', got '$got'"
+              exit 1
+            fi
+            echo "spelling honoured as gazelle does: $label"
+          done <<'SPELLINGS'
+          no space after hash|#gazelle:prefix example.com/custom|example.com/custom/app/sp_probe
+          extra spaces|#   gazelle:prefix example.com/custom|example.com/custom/app/sp_probe
+          tab before keyword|#\tgazelle:prefix example.com/custom|example.com/custom/app/sp_probe
+          tab before value|# gazelle:prefix\texample.com/custom|example.com/custom/app/sp_probe
+          double hash is not a directive|## gazelle:prefix example.com/custom|example.com/stale_scaffold/app/sp_probe
+          SPELLINGS
+
+          # A root `BUILD` that is a DIRECTORY. Unremarkable outside bazel, and
+          # this probe runs on every host with a go.mod -- reading it as a file
+          # aborted render-app with a raw traceback and stamped nothing, on a
+          # host that worked before the probe existed.
+          host="$RUNNER_TEMP/convhost-dir"
+          rm -rf "$host"
+          mkdir -p "$host/BUILD"
+          printf 'module example.com/dirhost\n\ngo 1.24\n' > "$host/go.mod"
+          aspect render-app --language=go --name=dir_probe --out="$host/app/dir_probe"
+          if ! grep -qF 'importpath = "example.com/dirhost/app/dir_probe"' "$host/app/dir_probe/BUILD.bazel"; then
+            echo "a root build file that is a directory must be skipped, not read:"
+            ls -1 "$host/app/dir_probe"
+            exit 1
+          fi
+          echo "root BUILD as a directory: skipped, host still stamps"
+
+          # A build_file_name that collides with a file the app template already
+          # renders must REFUSE, not silently overwrite it (which also made the
+          # reported file count a lie).
+          host="$RUNNER_TEMP/convhost-collide"
+          rm -rf "$host"
+          mkdir -p "$host"
+          printf 'module example.com/collide\n\ngo 1.24\n' > "$host/go.mod"
+          printf '# gazelle:build_file_name README.md\n' > "$host/BUILD.bazel"
+          if aspect render-app --language=go --name=col_probe --out="$host/app/col_probe" > "$RUNNER_TEMP/collide.log" 2>&1; then
+            echo "a build_file_name colliding with a rendered file was ACCEPTED; it must be refused."
+            ls -1 "$host/app/col_probe"
+            exit 1
+          fi
+          if ! grep -q "collides with a file the" "$RUNNER_TEMP/collide.log"; then
+            echo "the collision failed, but not with the collision refusal:"
+            cat "$RUNNER_TEMP/collide.log"
+            exit 1
+          fi
+          echo "build_file_name colliding with a rendered file: refused"
+
           # Negative control: neither directive -> gazelle's own defaults, which
           # is exactly what every starter gets. If this ever changes, the fix
           # has stopped being additive.
@@ -529,6 +636,19 @@ jobs:
             aspect render-app --language=go --name=payments     --out=./app/payments
             aspect render-app --language=go --name=payments_api --out=./app/payments_api
             aspect render-app --language=go --name=billing      --out=./services/billing
+
+            # On copybara-go the root `# gazelle:prefix` disagrees with go.mod on
+            # purpose (see "Render and normalize the two hosts"). The diff below
+            # is the real verdict; this assertion just makes the failure legible
+            # when the engine reads the wrong source -- otherwise it surfaces as
+            # an unexplained one-line diff.
+            if [ "$preset" = "copybara-go" ]; then
+              if ! grep -qF 'importpath = "example.com/prefix_disagrees_with_go_mod/app/payments"' app/payments/BUILD.bazel; then
+                echo "the host's '# gazelle:prefix' OUTRANKS its go.mod module path in gazelle, so the stamped importpath must use it:"
+                grep -n importpath app/payments/BUILD.bazel || echo "  (no importpath at all)"
+                exit 1
+              fi
+            fi
 
             git add -A
             git -c user.email=ci@aspect.build -c user.name=CI commit -qm "stamped"

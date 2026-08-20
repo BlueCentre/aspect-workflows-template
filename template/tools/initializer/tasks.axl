@@ -146,10 +146,18 @@ def _render_config(app):
 # stamping PR lands. An explicit flag still outranks everything -- it is the
 # operator saying the host on disk is not the destination.
 
-# The two directives, matched whole-line (after strip) against a rendered build
-# file, exactly as gazelle's own directive parser reads them.
-_GAZELLE_BUILD_FILE_NAME = "# gazelle:build_file_name "
-_GAZELLE_PREFIX = "# gazelle:prefix "
+# The `gazelle:` marker and the word characters a directive KEYWORD may contain.
+# gazelle parses directives out of a build file's COMMENT tokens with
+#
+#     ^#\s*gazelle:(\w+)\s*(.*?)\s*$
+#
+# and `_gazelle_directive` below reproduces that shape rather than matching one
+# hardcoded spelling. It matters: `#gazelle:prefix x`, `#   gazelle:prefix x` and
+# a tab between keyword and value are all honoured BY GAZELLE, so missing any of
+# them does not degrade gracefully -- it silently reinstates the exact bug this
+# probe exists to remove, on a host whose build file looks entirely normal.
+_GAZELLE_MARK = "gazelle:"
+_WORD_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 # Probe order for the host's ROOT build file, and the name the app's build file
 # is rendered under before any host convention is applied. Both mirror gazelle's
@@ -159,16 +167,53 @@ _GAZELLE_PREFIX = "# gazelle:prefix "
 _ROOT_BUILD_FILE_NAMES = ["BUILD.bazel", "BUILD"]
 _DEFAULT_BUILD_FILE_NAME = "BUILD.bazel"
 
+def _gazelle_directive(line):
+    """Split one line into (keyword, value), or ("", "") if it is not a directive.
+
+    Mirrors gazelle's `^#\\s*gazelle:(\\w+)\\s*(.*?)\\s*$` on the whitespace it
+    tolerates: exactly one leading `#`, then any amount of whitespace (or none)
+    before `gazelle:`, then a `\\w+` keyword, then the value with surrounding
+    whitespace -- spaces or tabs -- trimmed off. `## gazelle:prefix x` is NOT a
+    directive, here or in gazelle: a second `#` is not whitespace.
+
+    KNOWN DIVERGENCE, accepted deliberately: gazelle matches this against
+    PARSED COMMENT TOKENS, and we match it against raw lines. A directive-shaped
+    line inside a `\"\"\"...\"\"\"` string literal is therefore honoured here and
+    ignored by gazelle. Closing that gap means parsing Starlark inside a template
+    engine to serve a case nobody writes; the cost of being wrong is a stamped
+    importpath or file name that gazelle then rewrites once -- visible and
+    trivially fixed -- whereas the whitespace divergence above was silent.
+    """
+    line = line.strip()
+    if not line.startswith("#"):
+        return ("", "")
+    rest = line[1:].strip()
+    if not rest.startswith(_GAZELLE_MARK):
+        return ("", "")
+    rest = rest[len(_GAZELLE_MARK):]
+    n = 0
+    for _ in range(len(rest)):
+        if n < len(rest) and rest[n] in _WORD_CHARS:
+            n += 1
+        else:
+            break
+    if n == 0:
+        return ("", "")
+    return (rest[:n], rest[n:].strip())
+
 def _host_gazelle_conventions(ctx, root):
     """Read the host's two build-file conventions from its ROOT build file.
 
-    `root` is the host module root already resolved for the go.mod walk, so this
-    costs one existence check and one read of a file the walk was standing next
-    to anyway.
+    `root` is the host GO MODULE root -- the directory whose `go.mod` the walk
+    stopped at, not necessarily the repo root (see the docs' note on hosts that
+    keep `go.mod` in a subdirectory). Anchoring both on the same directory is
+    what keeps `prefix` and `package_path` consistent with each other.
 
     Returns (build_file_name, prefix), each "" when the host does not declare
     it. `build_file_name` is the FIRST name of a comma-separated list, because
-    that is the one gazelle CREATES a new package's build file under.
+    that is the one gazelle CREATES a new package's build file under. Both are
+    LAST-non-empty-wins across the file, matching gazelle's own last-wins
+    handling of a repeated directive.
 
     Only the root file is read. gazelle inherits directives down the tree and a
     subdirectory may override either one; reading the whole chain would mean
@@ -183,16 +228,24 @@ def _host_gazelle_conventions(ctx, root):
     prefix = ""
     for name in _ROOT_BUILD_FILE_NAMES:
         path = root + "/" + name
+
+        # is_file, NOT exists: `BUILD` is an ordinary directory name outside
+        # bazel, and this probe now runs on every host with a go.mod. Treating a
+        # directory as the root build file aborted render-app with a raw
+        # traceback and stamped nothing -- on a host that rendered fine before
+        # the probe existed.
         if not ctx.std.fs.exists(path):
             continue
+        if not ctx.std.fs.metadata(path).is_file:
+            continue
+
         for line in ctx.std.fs.read_to_string(path).split("\n"):
-            line = line.strip()
-            if line.startswith(_GAZELLE_BUILD_FILE_NAME):
-                names = [n.strip() for n in line[len(_GAZELLE_BUILD_FILE_NAME):].split(",") if n.strip()]
+            keyword, value = _gazelle_directive(line)
+            if keyword == "build_file_name":
+                names = [n.strip() for n in value.split(",") if n.strip()]
                 if names:
                     build_file_name = names[0]
-            elif line.startswith(_GAZELLE_PREFIX):
-                value = line[len(_GAZELLE_PREFIX):].strip()
+            elif keyword == "prefix":
                 if value:
                     prefix = value
 
@@ -210,12 +263,25 @@ def _apply_build_file_name(ctx, out_abs, written, build_file_name):
     and `check-renders` renders with NO host, so pushing a host property into it
     would make the hostless default a thing that could drift. Here it is a
     single, local, host-only step, and the returned `written` list -- which is
-    what the log line and every caller report -- carries the final name.
+    what every caller inspects and what the log line COUNTS -- carries the final
+    name.
     """
     if build_file_name == _DEFAULT_BUILD_FILE_NAME:
         return written
     if _DEFAULT_BUILD_FILE_NAME not in written:
         return written
+
+    # A host may name its build files after something the app template also
+    # renders. Renaming onto it would silently destroy that file, leave a
+    # duplicate in `written`, and make the reported count a lie. Refuse: the
+    # host's convention and the template's file set genuinely conflict, and only
+    # a human can say which one should move.
+    if build_file_name in written:
+        fail(("the host's `# gazelle:build_file_name {}` collides with a file the {} app " +
+              "template already renders, so writing the build file there would destroy it. " +
+              "Rename the template's file or the host's build-file convention.").format(
+            build_file_name, out_abs.rsplit("/", 1)[-1]))
+
     ctx.std.fs.rename(out_abs + "/" + _DEFAULT_BUILD_FILE_NAME, out_abs + "/" + build_file_name)
     return [build_file_name if w == _DEFAULT_BUILD_FILE_NAME else w for w in written]
 
@@ -247,6 +313,10 @@ def _host_module(ctx, out_abs):
     no go.mod at or above --out. There is deliberately NO fallback value -- a
     guessed import path is the exact bug this contract exists to prevent, so the
     caller turns "not found" into an error naming the flags that fix it.
+
+    A DIRECTORY named `go.mod` is not a module marker, so the walk steps over it
+    rather than aborting on the unreadable path -- same reasoning as the
+    root-build-file probe.
     """
     segs = _path_segments(out_abs)
     rel = []
@@ -254,7 +324,7 @@ def _host_module(ctx, out_abs):
         if not segs:
             break
         root = "/" + "/".join(segs)
-        if ctx.std.fs.exists(root + "/go.mod"):
+        if ctx.std.fs.exists(root + "/go.mod") and ctx.std.fs.metadata(root + "/go.mod").is_file:
             for line in ctx.std.fs.read_to_string(root + "/go.mod").split("\n"):
                 line = line.strip()
                 if line.startswith("module "):
